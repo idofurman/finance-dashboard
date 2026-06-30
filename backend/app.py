@@ -8,7 +8,7 @@ from datetime import date, timedelta
 app = Flask(__name__)
 CORS(app)
 
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://admin:secret@db:5432/finance')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 
 def get_db():

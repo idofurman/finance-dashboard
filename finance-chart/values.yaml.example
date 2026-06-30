@@ -9,8 +9,6 @@ db:
   image: postgres:16
   storage: 1Gi
   credentials:
-    user: admin 
-    password: secret
-    database: finance     
-
-  
+    user: CHANGE_ME
+    password: CHANGE_ME
+    database: finance
