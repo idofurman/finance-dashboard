@@ -1,0 +1,16 @@
+backend:
+  image:
+    repository: finance-backend
+    tag: latest
+  port: 5000
+  nodePort: 30500
+
+db:
+  image: postgres:16
+  storage: 1Gi
+  credentials:
+    user: admin 
+    password: secret
+    database: finance     
+
+  

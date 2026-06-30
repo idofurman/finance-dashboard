@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>AllExpense</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+    <!-- Header -->
+    <header class="header">
+        <h1 class="app-title" id="appTitle">💰 AllExpense</h1>
+        <div class="header-actions">
+            <button class="btn-ghost" id="langToggle">🌐 HE</button>
+            <select class="select-sm" id="currencySelect">
+                <option value="ILS">₪ ILS</option>
+                <option value="USD">$ USD</option>
+                <option value="EUR">€ EUR</option>
+            </select>
+            <button class="btn-ghost" id="openStandingModal">🔄 Standing Orders</button>
+            <button class="btn-ghost" id="openBudgetModal">🎯 Budgets</button>
+        </div>
+    </header>
+
+    <!-- Month Navigation — full width, always visible -->
+    <div class="month-bar">
+        <button class="btn-icon" id="prevMonth">‹</button>
+        <span class="month-label" id="monthDisplay"></span>
+        <button class="btn-icon" id="nextMonth">›</button>
+    </div>
+
+    <div class="content-grid">
+
+        <!-- LEFT COLUMN -->
+        <div class="col-left">
+
+            <!-- Summary Card -->
+            <div class="summary-card">
+                <div class="summary-left">
+                    <p class="summary-label" id="labelTotal">Total this month</p>
+                    <h2 class="total-amount" id="totalAmount">₪0</h2>
+                    <p class="standing-note" id="standingNote"></p>
+                </div>
+                <div class="summary-right">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Budget Bars -->
+            <div class="section" id="budgetSection">
+                <div class="section-header">
+                    <span class="section-title" id="labelBudgets">Budgets</span>
+                </div>
+                <div id="budgetBars"></div>
+            </div>
+
+            <!-- Standing Orders -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title" id="labelStanding">Standing Orders</span>
+                    <span class="standing-total" id="standingTotal"></span>
+                </div>
+                <div id="standingOrdersDisplay"></div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="col-right">
+
+            <!-- New Expense Button -->
+            <button class="btn-new-expense" id="openAddModal2">+ New Expense</button>
+
+            <!-- Filter Bar (current month only) -->
+            <div class="filter-bar" id="filterBar">
+                <button class="filter-btn active" data-filter="month" id="filterMonth">All Month</button>
+                <button class="filter-btn" data-filter="week" id="filterWeek">This Week</button>
+                <button class="filter-btn" data-filter="today" id="filterToday">Today</button>
+            </div>
+
+            <!-- Date Filter -->
+            <div class="section date-filter-section">
+                <div class="date-filter-row">
+                    <span class="section-title" id="labelDateFilter">📅 Filter by date</span>
+                    <div class="date-filter-controls">
+                        <input type="date" class="input input-sm date-input" id="dateFilter">
+                        <button class="btn-sm btn-clear-date" id="clearDateFilter" style="display:none" id="labelClearDate">✕ Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expense List -->
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title" id="labelExpenses">Expenses</span>
+                    <div class="controls-row">
+                        <select class="select-sm" id="categoryFilter"></select>
+                        <button class="btn-sm" id="sortToggle">↕ Sort</button>
+                    </div>
+                </div>
+                <div class="category-total" id="categoryTotal"></div>
+                <div id="expenseList" class="expense-list"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" id="openAddModal">+</button>
+
+<!-- ADD EXPENSE MODAL -->
+<div class="overlay" id="addModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="labelAddExpense">Add Expense</h3>
+            <button class="btn-close" onclick="closeModal('addModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p class="input-label" id="labelName">Name of Expense</p>
+            <input class="input" type="text" id="expenseName" placeholder="e.g. Shufersal" dir="auto">
+            <p class="input-label" id="labelCategory">Kind of Expense</p>
+            <select class="input category-select" id="categorySelect">
+                <option value="" disabled selected id="labelCategoryPlaceholder">Select a category...</option>
+            </select>
+            <input class="input" type="text" id="customCategory" placeholder="Name your category..." style="display:none">
+            <p class="input-label" id="labelAmount">Price</p>
+            <input class="input" type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0">
+            <p class="input-label" id="labelDate">Day of Purchase</p>
+            <input class="input" type="date" id="expenseDate">
+            <button class="btn-primary" id="submitExpense">Add Expense</button>
+        </div>
+    </div>
+</div>
+
+<!-- BUDGET MODAL -->
+<div class="overlay" id="budgetModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="labelManageBudgets">Monthly Budgets</h3>
+            <button class="btn-close" onclick="closeModal('budgetModal')">✕</button>
+        </div>
+        <div class="modal-body" id="budgetForm"></div>
+    </div>
+</div>
+
+<!-- STANDING ORDERS MODAL -->
+<div class="overlay" id="standingModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="labelManageStanding">Standing Orders</h3>
+            <button class="btn-close" onclick="closeModal('standingModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="standingList"></div>
+            <hr class="divider">
+            <p class="input-label" id="labelAddStanding">Add New Standing Order</p>
+            <div class="category-grid" id="standingCategoryGrid"></div>
+            <input class="input" type="text" id="standingName" placeholder="Name (e.g. Rent)">
+            <input class="input" type="number" id="standingAmount" placeholder="Amount" step="0.01" min="0">
+            <button class="btn-primary" id="submitStanding">Add</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURATION
+// ============================================================
+const API_URL = 'http://10.0.0.97:30500';
+
+const CATEGORIES = [
+    { key: 'groceries',     icon: '🛒', en: 'Groceries',     he: 'קניות'    },
+    { key: 'housing',       icon: '🏠', en: 'Housing',       he: 'דיור'     },
+    { key: 'transport',     icon: '🚗', en: 'Transport',     he: 'תחבורה'   },
+    { key: 'food',          icon: '🍔', en: 'Food',          he: 'אוכל'     },
+    { key: 'clothing',      icon: '👕', en: 'Clothing',      he: 'ביגוד'    },
+    { key: 'health',        icon: '💊', en: 'Health',        he: 'בריאות'   },
+    { key: 'subscriptions', icon: '📱', en: 'Subscriptions', he: 'מנויים'   },
+    { key: 'entertainment', icon: '🎮', en: 'Entertainment', he: 'בידור'    },
+    { key: 'education',     icon: '📚', en: 'Education',     he: 'חינוך'    },
+    { key: 'other',         icon: '💰', en: 'Other',         he: 'אחר'      },
+];
+
+const CURRENCY_SYMBOLS = { ILS: '₪', USD: '$', EUR: '€' };
+
+const I18N = {
+    en: {
+        appTitle:            '💰 AllExpense',
+        labelTotal:          'Total this month',
+        labelBudgets:        'Budgets',
+        labelExpenses:       'Expenses',
+        labelStanding:       'Standing Orders',
+        labelAddExpense:     'Add Expense',
+        labelManageBudgets:  'Monthly Budgets',
+        labelManageStanding: 'Standing Orders',
+        labelCategory:       'Category',
+        labelName:           'Name',
+        labelAmount:         'Amount',
+        labelDate:           'Date',
+        labelAddStanding:    'Add New Standing Order',
+        filterMonth:         'All Month',
+        filterWeek:          'This Week',
+        filterToday:         'Today',
+        sortBtn:             '↕ Sort by Category',
+        unsortBtn:           '↕ Unsort',
+        noExpenses:          'No expenses yet',
+        deleteCfm:           'Delete this expense?',
+        save:                'Save',
+        standingNote:        '+ standing orders',
+        allCategories:       'All Categories',
+        addExpenseBtn:       'Add Expense',
+        addStandingBtn:          'Add',
+        labelCategoryPlaceholder: 'Select a category...',
+        newExpenseBtn:           '+ New Expense',
+        budgetsBtn:              '🎯 Budgets',
+        standingBtn:             '🔄 Standing Orders',
+        remaining:               'remaining',
+        overBudget:              'over budget',
+        labelDateFilter:         '📅 Filter by date',
+        labelClearDate:          '✕ Clear',
+        monthNames:          ['January','February','March','April','May','June','July','August','September','October','November','December'],
+    },
+    he: {
+        appTitle:            '💰 AllExpense',
+        labelTotal:          'סה"כ החודש',
+        labelBudgets:        'תקציבים',
+        labelExpenses:       'הוצאות',
+        labelStanding:       'הוראות קבע',
+        labelAddExpense:     'הוסף הוצאה',
+        labelManageBudgets:  'תקציבים חודשיים',
+        labelManageStanding: 'הוראות קבע',
+        labelCategory:       'קטגוריה',
+        labelName:           'שם',
+        labelAmount:         'סכום',
+        labelDate:           'תאריך',
+        labelAddStanding:    'הוסף הוראת קבע',
+        filterMonth:         'כל החודש',
+        filterWeek:          'השבוע',
+        filterToday:         'היום',
+        sortBtn:             '↕ מיין לפי קטגוריה',
+        unsortBtn:           '↕ בטל מיון',
+        noExpenses:          'אין הוצאות עדיין',
+        deleteCfm:           'למחוק הוצאה זו?',
+        save:                'שמור',
+        standingNote:        '+ הוראות קבע',
+        allCategories:       'כל הקטגוריות',
+        addExpenseBtn:       'הוסף הוצאה',
+        addStandingBtn:          'הוסף',
+        labelCategoryPlaceholder: 'בחר קטגוריה...',
+        newExpenseBtn:           '+ הוצאה חדשה',
+        budgetsBtn:              '🎯 תקציבים',
+        standingBtn:             '🔄 הוראות קבע',
+        remaining:               'נותר',
+        overBudget:              'חריגה מהתקציב',
+        labelDateFilter:         '📅 סנן לפי תאריך',
+        labelClearDate:          '✕ נקה',
+        monthNames:          ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'],
+    }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+    lang:                     'en',
+    currency:                 'ILS',
+    currentMonth:             new Date().toISOString().slice(0, 7),
+    filter:                   'month',
+    expenses:                 [],
+    standingOrders:           [],
+    budgets:                  [],
+    sortByCategory:           false,
+    filterCategory:           '',
+    specificDate:             null,
+    selectedCategory:         null,
+    standingSelectedCategory: null,
+    chart:                    null,
+};
+
+// ============================================================
+// HELPERS
+// ============================================================
+function t(key) { return I18N[state.lang][key] || key; }
+
+function fmt(amount) {
+    const sym = CURRENCY_SYMBOLS[state.currency];
+    return `${sym}${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function getCat(key) { return CATEGORIES.find(c => c.key === key) || { icon: '💰', en: key, he: key }; }
+function catName(key) { const c = getCat(key); return state.lang === 'he' ? c.he : c.en; }
+function isCurrentMonth() { return state.currentMonth === new Date().toISOString().slice(0, 7); }
+function monthLabel() {
+    const [year, month] = state.currentMonth.split('-');
+    return `${t('monthNames')[parseInt(month) - 1]} ${year}`;
+}
+
+// ============================================================
+// API
+// ============================================================
+async function fetchExpenses() {
+    const url = state.specificDate
+        ? `${API_URL}/expenses?date=${state.specificDate}`
+        : `${API_URL}/expenses?month=${state.currentMonth}&filter=${state.filter}`;
+    const res = await fetch(url);
+    state.expenses = await res.json();
+}
+
+async function addExpense(data) {
+    await fetch(`${API_URL}/expenses`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    });
+}
+
+async function deleteExpense(id) { await fetch(`${API_URL}/expenses/${id}`, { method: 'DELETE' }); }
+
+async function fetchBudgets() {
+    const res = await fetch(`${API_URL}/budgets?month=${state.currentMonth}`);
+    state.budgets = await res.json();
+}
+
+async function saveBudget(category, limit) {
+    await fetch(`${API_URL}/budgets`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, month: state.currentMonth, limit_amount: limit }),
+    });
+}
+
+async function fetchStandingOrders() {
+    const res = await fetch(`${API_URL}/standing-orders`);
+    state.standingOrders = await res.json();
+}
+
+async function addStandingOrder(data) {
+    await fetch(`${API_URL}/standing-orders`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    });
+}
+
+async function deleteStandingOrder(id) { await fetch(`${API_URL}/standing-orders/${id}`, { method: 'DELETE' }); }
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderCategoryDropdown() {
+    const sel = document.getElementById('categorySelect');
+    const current = sel.value;
+    sel.innerHTML = `<option value="" disabled>${t('labelCategoryPlaceholder')}</option>`;
+    CATEGORIES.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.key;
+        opt.textContent = `${cat.icon}  ${state.lang === 'he' ? cat.he : cat.en}`;
+        if (cat.key === current) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    if (!current) sel.value = '';
+}
+
+function renderCategoryGrid(containerId, stateKey) {
+    const grid = document.getElementById(containerId);
+    if (!grid) return;
+    grid.innerHTML = '';
+    CATEGORIES.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'cat-btn' + (state[stateKey] === cat.key ? ' active' : '');
+        btn.innerHTML = `<span class="cat-icon">${cat.icon}</span><span class="cat-name">${state.lang === 'he' ? cat.he : cat.en}</span>`;
+        btn.onclick = () => { state[stateKey] = cat.key; renderCategoryGrid(containerId, stateKey); };
+        grid.appendChild(btn);
+    });
+}
+
+function renderCategoryFilter() {
+    const sel = document.getElementById('categoryFilter');
+    sel.innerHTML = `<option value="">${t('allCategories')}</option>`;
+    CATEGORIES.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.key;
+        opt.textContent = `${cat.icon} ${state.lang === 'he' ? cat.he : cat.en}`;
+        if (cat.key === state.filterCategory) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function renderSummary() {
+    const standingTotal = state.standingOrders.reduce((s, o) => s + o.amount, 0);
+    const expenseTotal  = state.expenses.reduce((s, e) => s + e.amount, 0);
+    const total = expenseTotal + (state.filter === 'month' ? standingTotal : 0);
+    document.getElementById('totalAmount').textContent = fmt(total);
+    const note = document.getElementById('standingNote');
+    if (state.filter === 'month' && standingTotal > 0) {
+        note.textContent = `${t('standingNote')}: ${fmt(standingTotal)}`;
+        note.style.display = 'block';
+    } else {
+        note.style.display = 'none';
+    }
+}
+
+function renderChart() {
+    const ctx   = document.getElementById('categoryChart').getContext('2d');
+    const spend = {};
+    state.expenses.forEach(e => { spend[e.category] = (spend[e.category] || 0) + e.amount; });
+
+    const labels = [], data = [];
+    const colors = ['#4F46E5','#7C3AED','#EC4899','#EF4444','#F97316','#EAB308','#22C55E','#14B8A6','#3B82F6','#6B7280'];
+    Object.entries(spend).forEach(([key, val]) => {
+        const cat = getCat(key);
+        labels.push(`${cat.icon} ${state.lang === 'he' ? cat.he : cat.en}`);
+        data.push(val);
+    });
+
+    if (state.chart) state.chart.destroy();
+    const canvas = document.getElementById('categoryChart');
+    if (data.length === 0) { canvas.style.display = 'none'; return; }
+    canvas.style.display = 'block';
+
+    state.chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: colors.slice(0, data.length), borderWidth: 0 }] },
+        options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: c => ` ${fmt(c.raw)}` } }
+            },
+            cutout: '65%',
+        }
+    });
+}
+
+function renderBudgetBars() {
+    const section   = document.getElementById('budgetSection');
+    const container = document.getElementById('budgetBars');
+    container.innerHTML = '';
+    if (state.budgets.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    state.budgets.forEach(b => {
+        const cat  = getCat(b.category);
+        const spent = state.expenses.filter(e => e.category === b.category).reduce((s, e) => s + e.amount, 0);
+        const pct  = Math.min((spent / b.limit_amount) * 100, 100);
+        const over = spent > b.limit_amount;
+        const remaining = b.limit_amount - spent;
+        const item = document.createElement('div');
+        item.className = 'budget-bar-item';
+        item.innerHTML = `
+            <div class="budget-bar-header">
+                <span>${cat.icon} ${state.lang === 'he' ? cat.he : cat.en}</span>
+                <span class="budget-amounts ${over ? 'over' : ''}">
+                    ${over ? '<span class="alert-dot">!</span>' : ''}
+                    ${fmt(spent)} / ${fmt(b.limit_amount)}
+                </span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill ${over ? 'over' : ''}" style="width:${pct}%"></div>
+            </div>
+            <div class="budget-remaining ${over ? 'over' : ''}">
+                ${over
+                    ? `${fmt(Math.abs(remaining))} ${t('overBudget')}`
+                    : `${fmt(remaining)} ${t('remaining')}`}
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function renderExpenseList() {
+    const list = document.getElementById('expenseList');
+    list.innerHTML = '';
+
+    let expenses = [...state.expenses];
+    if (state.filterCategory) expenses = expenses.filter(e => e.category === state.filterCategory);
+
+    const total   = expenses.reduce((s, e) => s + e.amount, 0);
+    const totalEl = document.getElementById('categoryTotal');
+    if (state.filterCategory && expenses.length > 0) {
+        const cat = getCat(state.filterCategory);
+        totalEl.textContent = `${cat.icon} ${catName(state.filterCategory)}: ${fmt(total)}`;
+        totalEl.style.display = 'block';
+    } else {
+        totalEl.style.display = 'none';
+    }
+
+    if (state.sortByCategory) expenses.sort((a, b) => a.category.localeCompare(b.category));
+
+    if (expenses.length === 0) {
+        list.innerHTML = `<p class="empty-text">${t('noExpenses')}</p>`;
+        return;
+    }
+
+    let lastCategory = null;
+    expenses.forEach(expense => {
+        const cat = getCat(expense.category);
+        if (state.sortByCategory && expense.category !== lastCategory) {
+            const header = document.createElement('div');
+            header.className = 'group-header';
+            header.textContent = `${cat.icon} ${catName(expense.category)}`;
+            list.appendChild(header);
+            lastCategory = expense.category;
+        }
+        const item = document.createElement('div');
+        item.className = 'expense-item';
+        item.innerHTML = `
+            <div class="expense-icon">${cat.icon}</div>
+            <div class="expense-details">
+                <span class="expense-name" dir="auto">${expense.name}</span>
+                <span class="expense-meta">${expense.date}${!state.sortByCategory ? ' · ' + catName(expense.category) : ''}</span>
+            </div>
+            <div class="expense-right">
+                <span class="expense-amount">${fmt(expense.amount)}</span>
+                <button class="btn-delete" onclick="handleDeleteExpense(${expense.id})">×</button>
+            </div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function renderStandingOrders() {
+    const container = document.getElementById('standingOrdersDisplay');
+    container.innerHTML = '';
+    const total = state.standingOrders.reduce((s, o) => s + o.amount, 0);
+    document.getElementById('standingTotal').textContent = fmt(total);
+
+    if (state.standingOrders.length === 0) {
+        container.innerHTML = `<p class="empty-text">${t('noExpenses')}</p>`;
+    } else {
+        state.standingOrders.forEach(order => {
+            const cat  = getCat(order.category);
+            const item = document.createElement('div');
+            item.className = 'expense-item';
+            item.innerHTML = `
+                <div class="expense-icon">🔄</div>
+                <div class="expense-details">
+                    <span class="expense-name">${order.name}</span>
+                    <span class="expense-meta">${cat.icon} ${catName(order.category)}</span>
+                </div>
+                <div class="expense-right">
+                    <span class="expense-amount">${fmt(order.amount)}</span>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    const modalList = document.getElementById('standingList');
+    if (!modalList) return;
+    modalList.innerHTML = '';
+    state.standingOrders.forEach(order => {
+        const cat  = getCat(order.category);
+        const item = document.createElement('div');
+        item.className = 'expense-item';
+        item.innerHTML = `
+            <div class="expense-icon">🔄</div>
+            <div class="expense-details">
+                <span class="expense-name">${order.name}</span>
+                <span class="expense-meta">${cat.icon} ${catName(order.category)} · ${fmt(order.amount)}</span>
+            </div>
+            <div class="expense-right">
+                <button class="btn-delete" onclick="handleDeleteStanding(${order.id})">×</button>
+            </div>
+        `;
+        modalList.appendChild(item);
+    });
+}
+
+function renderBudgetForm() {
+    const form = document.getElementById('budgetForm');
+    form.innerHTML = '';
+    CATEGORIES.forEach(cat => {
+        const existing = state.budgets.find(b => b.category === cat.key);
+        const row = document.createElement('div');
+        row.className = 'budget-form-row';
+        row.innerHTML = `
+            <label>${cat.icon} ${state.lang === 'he' ? cat.he : cat.en}</label>
+            <div class="budget-input-row">
+                <input class="input input-sm" type="number" id="budget_${cat.key}"
+                    placeholder="0" value="${existing ? existing.limit_amount : ''}" step="1" min="0">
+                <button class="btn-save" onclick="handleSaveBudget('${cat.key}')">${t('save')}</button>
+            </div>
+        `;
+        form.appendChild(row);
+    });
+}
+
+function updateLanguage() {
+    const dir = state.lang === 'he' ? 'rtl' : 'ltr';
+    document.documentElement.setAttribute('lang', state.lang);
+    document.documentElement.setAttribute('dir', dir);
+    ['appTitle','labelTotal','labelBudgets','labelExpenses','labelStanding',
+     'labelAddExpense','labelManageBudgets','labelManageStanding',
+     'labelCategory','labelName','labelAmount','labelDate','labelAddStanding'].forEach(k => {
+        const el = document.getElementById(k);
+        if (el) el.textContent = t(k);
+    });
+    document.getElementById('langToggle').textContent    = state.lang === 'en' ? '🌐 HE' : '🌐 EN';
+    document.getElementById('filterMonth').textContent   = t('filterMonth');
+    document.getElementById('filterWeek').textContent    = t('filterWeek');
+    document.getElementById('filterToday').textContent   = t('filterToday');
+    document.getElementById('submitExpense').textContent  = t('addExpenseBtn');
+    document.getElementById('submitStanding').textContent = t('addStandingBtn');
+    document.getElementById('sortToggle').textContent    = state.sortByCategory ? t('unsortBtn') : t('sortBtn');
+    document.getElementById('monthDisplay').textContent  = monthLabel();
+    document.getElementById('openAddModal2').textContent  = t('newExpenseBtn');
+    document.getElementById('openBudgetModal').textContent  = t('budgetsBtn');
+    document.getElementById('openStandingModal').textContent = t('standingBtn');
+    document.getElementById('labelDateFilter').textContent   = t('labelDateFilter');
+    document.getElementById('clearDateFilter').textContent   = t('labelClearDate');
+    renderCategoryDropdown();
+    renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
+    renderCategoryFilter();
+}
+
+function renderAll() {
+    document.getElementById('monthDisplay').textContent = monthLabel();
+    document.getElementById('filterBar').style.display  = isCurrentMonth() ? 'flex' : 'none';
+    renderSummary();
+    renderChart();
+    renderBudgetBars();
+    renderExpenseList();
+    renderStandingOrders();
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(id)  { document.getElementById(id).classList.add('active');    document.body.style.overflow = 'hidden'; }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); document.body.style.overflow = ''; }
+
+document.querySelectorAll('.overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); });
+});
+
+// ============================================================
+// HANDLERS
+// ============================================================
+async function handleDeleteExpense(id) {
+    if (!confirm(t('deleteCfm'))) return;
+    await deleteExpense(id);
+    await fetchExpenses();
+    renderAll();
+}
+
+async function handleDeleteStanding(id) {
+    await deleteStandingOrder(id);
+    await fetchStandingOrders();
+    renderStandingOrders();
+}
+
+async function handleSaveBudget(category) {
+    const input = document.getElementById(`budget_${category}`);
+    const val   = parseFloat(input.value);
+    if (isNaN(val) || val <= 0) return;
+    await saveBudget(category, val);
+    await fetchBudgets();
+    renderBudgetBars();
+    renderBudgetForm();
+}
+
+async function handleAddExpense() {
+    const name     = document.getElementById('expenseName').value.trim();
+    const amount   = parseFloat(document.getElementById('expenseAmount').value);
+    const date     = document.getElementById('expenseDate').value;
+    const selected = document.getElementById('categorySelect').value;
+    const custom   = document.getElementById('customCategory').value.trim();
+    const category = selected === 'other' && custom ? custom : selected;
+    if (!name || !amount || !category || !date) return;
+    await addExpense({ name, amount, category, date, currency: state.currency });
+    document.getElementById('expenseName').value    = '';
+    document.getElementById('expenseAmount').value  = '';
+    document.getElementById('categorySelect').value = '';
+    document.getElementById('customCategory').value = '';
+    document.getElementById('customCategory').style.display = 'none';
+    closeModal('addModal');
+    await fetchExpenses();
+    await fetchBudgets();
+    renderAll();
+}
+
+async function handleAddStanding() {
+    const name     = document.getElementById('standingName').value.trim();
+    const amount   = parseFloat(document.getElementById('standingAmount').value);
+    const category = state.standingSelectedCategory;
+    if (!name || !amount || !category) return;
+    await addStandingOrder({ name, amount, category, currency: state.currency });
+    document.getElementById('standingName').value   = '';
+    document.getElementById('standingAmount').value = '';
+    state.standingSelectedCategory = null;
+    renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
+    await fetchStandingOrders();
+    renderStandingOrders();
+}
+
+async function changeMonth(direction) {
+    const [year, month] = state.currentMonth.split('-').map(Number);
+    const d = new Date(year, month - 1 + direction, 1);
+    const newMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const now      = new Date();
+    const maxMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (newMonth > maxMonth) return;
+    state.currentMonth = newMonth;
+    if (!isCurrentMonth()) state.filter = 'month';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('filterMonth').classList.add('active');
+    await fetchExpenses();
+    await fetchBudgets();
+    renderAll();
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+document.getElementById('langToggle').addEventListener('click', () => {
+    state.lang = state.lang === 'en' ? 'he' : 'en';
+    updateLanguage();
+    renderAll();
+});
+
+document.getElementById('currencySelect').addEventListener('change', e => {
+    state.currency = e.target.value;
+    renderAll();
+});
+
+document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.filter = btn.dataset.filter;
+        await fetchExpenses();
+        renderAll();
+    });
+});
+
+document.getElementById('categoryFilter').addEventListener('change', e => {
+    state.filterCategory = e.target.value;
+    renderExpenseList();
+});
+
+document.getElementById('sortToggle').addEventListener('click', () => {
+    state.sortByCategory = !state.sortByCategory;
+    document.getElementById('sortToggle').textContent = state.sortByCategory ? t('unsortBtn') : t('sortBtn');
+    renderExpenseList();
+});
+
+function openAddExpenseModal() {
+    document.getElementById('expenseDate').value    = new Date().toISOString().slice(0, 10);
+    document.getElementById('categorySelect').value = '';
+    document.getElementById('customCategory').value = '';
+    document.getElementById('customCategory').style.display = 'none';
+    openModal('addModal');
+}
+
+document.getElementById('openAddModal').addEventListener('click', openAddExpenseModal);
+document.getElementById('openAddModal2').addEventListener('click', openAddExpenseModal);
+
+document.getElementById('openBudgetModal').addEventListener('click', () => {
+    renderBudgetForm();
+    openModal('budgetModal');
+});
+
+document.getElementById('openStandingModal').addEventListener('click', () => {
+    renderStandingOrders();
+    openModal('standingModal');
+});
+
+document.getElementById('categorySelect').addEventListener('change', e => {
+    const custom = document.getElementById('customCategory');
+    custom.style.display = e.target.value === 'other' ? 'block' : 'none';
+    if (e.target.value !== 'other') custom.value = '';
+});
+
+document.getElementById('submitExpense').addEventListener('click', handleAddExpense);
+document.getElementById('submitStanding').addEventListener('click', handleAddStanding);
+
+document.getElementById('dateFilter').addEventListener('change', async e => {
+    const val = e.target.value;
+    state.specificDate = val || null;
+    document.getElementById('clearDateFilter').style.display = val ? 'inline-block' : 'none';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    await fetchExpenses();
+    renderAll();
+});
+
+document.getElementById('clearDateFilter').addEventListener('click', async () => {
+    state.specificDate = null;
+    document.getElementById('dateFilter').value = '';
+    document.getElementById('clearDateFilter').style.display = 'none';
+    document.getElementById('filterMonth').classList.add('active');
+    await fetchExpenses();
+    renderAll();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+    renderCategoryDropdown();
+    renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
+    renderCategoryFilter();
+    updateLanguage();
+
+    try {
+        await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
+        renderAll();
+    } catch (e) {
+        console.error('Failed to load data from API:', e);
+    }
+}
+
+init();
+</script>
+</body>
+</html>
