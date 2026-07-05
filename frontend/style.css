@@ -59,6 +59,7 @@ body {
     top: 0;
     z-index: 50;
     box-shadow: var(--shadow-sm);
+    overflow: visible;
 }
 
 .app-title {
@@ -72,6 +73,55 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    pointer-events: none;
+}
+
+.header-welcome {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    pointer-events: all;
+}
+
+.header-welcome:hover { color: var(--primary); }
+
+.header-clock {
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+.time-toggle-btn {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    color: var(--muted);
+    text-align: left;
+    cursor: pointer;
+}
+
+.time-toggle-btn:hover { border-color: var(--primary); color: var(--text); }
+
+.time-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }
 
 /* ============================================================
@@ -725,6 +775,30 @@ body {
     letter-spacing: 0.05em;
 }
 
+.modal-error {
+    display: none;
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid #FECACA;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.lang-warning {
+    display: none;
+    background: #FFFBEB;
+    color: #92400E;
+    border: 1px solid #FCD34D;
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-top: -8px;
+}
+
 /* ============================================================
    CATEGORY GRID (standing orders modal)
    ============================================================ */
@@ -840,3 +914,318 @@ body {
 [dir="rtl"] .summary-card    { direction: rtl; }
 [dir="rtl"] .month-bar       { direction: rtl; }
 [dir="rtl"] .category-select { background-position: left 14px center; padding-right: 14px; padding-left: 40px; }
+
+/* ============================================================
+   YEARLY VIEW MODAL
+   ============================================================ */
+.modal-wide { max-width: 560px; }
+
+.year-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    background: var(--primary-light);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+}
+
+.year-label {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+    min-width: 80px;
+    text-align: center;
+    letter-spacing: -0.5px;
+}
+
+.yearly-months-label {
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: -2px 0 2px;
+}
+
+.yearly-total-card {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    box-shadow: 0 6px 20px var(--primary-glow);
+}
+
+.yearly-total-label {
+    font-size: 0.78rem;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.yearly-total-amount {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.yearly-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: -4px;
+}
+
+.yearly-cat-row {
+    margin-bottom: 16px;
+}
+
+.yearly-cat-row:last-child { margin-bottom: 0; }
+
+.yearly-cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 7px;
+}
+
+.yearly-cat-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.yearly-cat-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.yearly-cat-amount {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.yearly-cat-pct {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 2px 7px;
+    border-radius: 99px;
+    min-width: 38px;
+    text-align: center;
+}
+
+[dir="rtl"] .year-nav        { direction: rtl; }
+[dir="rtl"] .yearly-cat-header { direction: rtl; }
+[dir="rtl"] .yearly-total-card { direction: rtl; }
+
+/* ============================================================
+   AMOUNT INPUT WITH CURRENCY BADGE
+   ============================================================ */
+.amount-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.currency-badge {
+    position: absolute;
+    left: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary);
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+}
+
+.amount-input {
+    padding-left: 36px;
+}
+
+[dir="rtl"] .currency-badge { left: auto; right: 14px; }
+[dir="rtl"] .amount-input   { padding-left: 14px; padding-right: 36px; }
+
+/* ============================================================
+   CURRENCY PILLS (inside Add Expense modal)
+   ============================================================ */
+.currency-pills {
+    display: flex;
+    gap: 6px;
+}
+
+.currency-pill {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 99px;
+    background: white;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.currency-pill.active {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.currency-pill:hover:not(.active) {
+    border-color: #C7D2FE;
+    background: #F5F3FF;
+    color: var(--text);
+}
+
+/* ============================================================
+   RECEIPT SCANNER
+   ============================================================ */
+.receipt-scan-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.receipt-btn {
+    background: #F0F9FF;
+    border: 1.5px dashed #0EA5E9;
+    color: #0369A1;
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+}
+.receipt-btn:hover { background: #E0F2FE; border-color: #0284C7; }
+.receipt-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.receipt-status {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    flex: 1;
+}
+.receipt-preview {
+    width: 100%;
+    max-height: 170px;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+}
+
+/* ============================================================
+   MONTH PICKER INPUT
+   ============================================================ */
+.month-picker-input {
+    border: none;
+    background: transparent;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    min-width: 148px;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+    outline: none;
+}
+
+.month-picker-input:hover { background: rgba(79,70,229,0.08); }
+.month-picker-input:focus { background: var(--primary-light); color: var(--primary); }
+
+/* hide the native calendar icon in webkit */
+.month-picker-input::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    cursor: pointer;
+}
+
+[dir="rtl"] .month-picker-input { direction: rtl; }
+
+/* ============================================================
+   CALENDAR FILTER BUTTON (inside filter bar)
+   ============================================================ */
+.filter-cal-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.filter-btn-cal {
+    flex: none;
+    width: 38px;
+    font-size: 1rem;
+}
+
+/* Centered at the bottom of the 📅 button — picker opens centered below it */
+.cal-anchor {
+    position: absolute;
+    left: -120px;
+    top: 100%;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.btn-cal-clear {
+    background: var(--danger);
+    border: none;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s;
+    line-height: 1;
+}
+
+.btn-cal-clear:hover { opacity: 0.8; }
+
+.month-bar-label {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.btn-download {
+    background: #16A34A;
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+
+.btn-download:hover { opacity: 0.85; }

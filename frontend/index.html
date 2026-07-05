@@ -15,6 +15,10 @@
     <!-- Header -->
     <header class="header">
         <h1 class="app-title" id="appTitle">💰 AllExpense</h1>
+        <div class="header-center">
+            <div class="header-welcome" id="headerWelcome" onclick="changeUserName()"></div>
+            <div class="header-clock" id="headerClock"></div>
+        </div>
         <div class="header-actions">
             <button class="btn-ghost" id="langToggle">🌐 HE</button>
             <select class="select-sm" id="currencySelect">
@@ -22,6 +26,7 @@
                 <option value="USD">$ USD</option>
                 <option value="EUR">€ EUR</option>
             </select>
+            <button class="btn-ghost" id="openYearlyModal">📅 Year</button>
             <button class="btn-ghost" id="openStandingModal">🔄 Standing Orders</button>
             <button class="btn-ghost" id="openBudgetModal">🎯 Budgets</button>
         </div>
@@ -29,8 +34,9 @@
 
     <!-- Month Navigation — full width, always visible -->
     <div class="month-bar">
+        <span class="month-bar-label" id="monthBarLabel">📅 View month:</span>
         <button class="btn-icon" id="prevMonth">‹</button>
-        <span class="month-label" id="monthDisplay"></span>
+        <input type="month" id="monthPicker" class="month-picker-input">
         <button class="btn-icon" id="nextMonth">›</button>
     </div>
 
@@ -81,18 +87,14 @@
                 <button class="filter-btn active" data-filter="month" id="filterMonth">All Month</button>
                 <button class="filter-btn" data-filter="week" id="filterWeek">This Week</button>
                 <button class="filter-btn" data-filter="today" id="filterToday">Today</button>
+                <span class="filter-cal-wrap">
+                    <button class="filter-btn filter-btn-cal" id="calBtn">📅</button>
+                    <!-- Anchored directly below the 📅 button -->
+                    <input type="date" id="dateFilter" class="cal-anchor">
+                </span>
+                <button class="btn-cal-clear" id="clearDateFilter" style="display:none">✕</button>
             </div>
 
-            <!-- Date Filter -->
-            <div class="section date-filter-section">
-                <div class="date-filter-row">
-                    <span class="section-title" id="labelDateFilter">📅 Filter by date</span>
-                    <div class="date-filter-controls">
-                        <input type="date" class="input input-sm date-input" id="dateFilter">
-                        <button class="btn-sm btn-clear-date" id="clearDateFilter" style="display:none" id="labelClearDate">✕ Clear</button>
-                    </div>
-                </div>
-            </div>
 
             <!-- Expense List -->
             <div class="section">
@@ -101,6 +103,7 @@
                     <div class="controls-row">
                         <select class="select-sm" id="categoryFilter"></select>
                         <button class="btn-sm" id="sortToggle">↕ Sort</button>
+                        <button class="btn-download" id="downloadBtn" title="Download as Excel">⬇ Excel</button>
                     </div>
                 </div>
                 <div class="category-total" id="categoryTotal"></div>
@@ -116,6 +119,30 @@
 <!-- FAB -->
 <button class="fab" id="openAddModal">+</button>
 
+<!-- YEARLY VIEW MODAL -->
+<div class="overlay" id="yearlyModal">
+    <div class="modal modal-wide">
+        <div class="modal-header">
+            <h3 id="labelYearlyView">Yearly View</h3>
+            <button class="btn-close" onclick="closeModal('yearlyModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="year-nav">
+                <button class="btn-icon" id="prevYear">‹</button>
+                <span class="year-label" id="yearDisplay">2026</span>
+                <button class="btn-icon" id="nextYear">›</button>
+            </div>
+            <div class="yearly-months-label" id="yearlyMonthsLabel"></div>
+            <div class="yearly-total-card">
+                <span class="yearly-total-label" id="labelYearlyTotal">Total</span>
+                <span class="yearly-total-amount" id="yearlyTotalAmount">₪0</span>
+            </div>
+            <div class="yearly-section-title" id="labelYearlyByCategory">By Category</div>
+            <div id="yearlyCategoryBreakdown"></div>
+        </div>
+    </div>
+</div>
+
 <!-- ADD EXPENSE MODAL -->
 <div class="overlay" id="addModal">
     <div class="modal">
@@ -124,17 +151,40 @@
             <button class="btn-close" onclick="closeModal('addModal')">✕</button>
         </div>
         <div class="modal-body">
-            <p class="input-label" id="labelName">Name of Expense</p>
-            <input class="input" type="text" id="expenseName" placeholder="e.g. Shufersal" dir="auto">
+            <div class="receipt-scan-row">
+                <button type="button" class="receipt-btn" id="receiptScanBtn">📷 Scan Receipt</button>
+                <input type="file" id="receiptFileInput" accept="image/*" capture="environment" style="display:none">
+                <span class="receipt-status" id="receiptStatus"></span>
+            </div>
+            <img id="receiptPreview" class="receipt-preview" style="display:none" alt="">
+            <p class="input-label" id="labelName">Name</p>
+            <input class="input" type="text" id="expenseName" placeholder="e.g. Shufersal">
+            <input class="input" type="text" id="expenseNameHe" placeholder="למשל: שופרסל" dir="rtl" style="display:none">
+            <p class="lang-warning" id="expenseLangWarn"></p>
             <p class="input-label" id="labelCategory">Kind of Expense</p>
             <select class="input category-select" id="categorySelect">
                 <option value="" disabled selected id="labelCategoryPlaceholder">Select a category...</option>
             </select>
             <input class="input" type="text" id="customCategory" placeholder="Name your category..." style="display:none">
             <p class="input-label" id="labelAmount">Price</p>
-            <input class="input" type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0">
+            <div class="amount-wrapper">
+                <span class="currency-badge" id="expenseCurrencyBadge">₪</span>
+                <input class="input amount-input" type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0">
+            </div>
+            <div class="currency-pills">
+                <button type="button" class="currency-pill" data-currency="ILS">₪ ILS</button>
+                <button type="button" class="currency-pill" data-currency="USD">$ USD</button>
+                <button type="button" class="currency-pill" data-currency="EUR">€ EUR</button>
+            </div>
             <p class="input-label" id="labelDate">Day of Purchase</p>
             <input class="input" type="date" id="expenseDate">
+            <p class="input-label" id="labelTime">Time (optional)</p>
+            <button type="button" class="time-toggle-btn" id="timeToggleBtn" onclick="openTimePicker()">⏰ <span id="timeToggleLabel"></span></button>
+            <div class="time-input-row" id="timeInputRow" style="display:none">
+                <input class="input" type="time" id="purchaseTime" style="flex:1">
+                <button type="button" class="btn-sm btn-clear-date" id="clearTime">✕</button>
+            </div>
+            <p class="modal-error" id="expenseError"></p>
             <button class="btn-primary" id="submitExpense">Add Expense</button>
         </div>
     </div>
@@ -164,7 +214,10 @@
             <p class="input-label" id="labelAddStanding">Add New Standing Order</p>
             <div class="category-grid" id="standingCategoryGrid"></div>
             <input class="input" type="text" id="standingName" placeholder="Name (e.g. Rent)">
+            <input class="input" type="text" id="standingNameHe" placeholder="שם (למשל: שכר דירה)" dir="rtl" style="display:none">
+            <p class="lang-warning" id="standingLangWarn"></p>
             <input class="input" type="number" id="standingAmount" placeholder="Amount" step="0.01" min="0">
+            <p class="modal-error" id="standingError"></p>
             <button class="btn-primary" id="submitStanding">Add</button>
         </div>
     </div>
@@ -174,7 +227,7 @@
 // ============================================================
 // CONFIGURATION
 // ============================================================
-const API_URL = 'http://10.0.0.97:30500';
+const API_URL = 'http://10.238.219.34:30500';
 
 const CATEGORIES = [
     { key: 'groceries',     icon: '🛒', en: 'Groceries',     he: 'קניות'    },
@@ -190,6 +243,13 @@ const CATEGORIES = [
 ];
 
 const CURRENCY_SYMBOLS = { ILS: '₪', USD: '$', EUR: '€' };
+const RATES_TO_ILS    = { ILS: 1, USD: 3.7, EUR: 4.0 };
+
+function convertAmount(amount, fromCurrency, toCurrency) {
+    if (!fromCurrency || fromCurrency === toCurrency) return amount;
+    const inILS = amount * (RATES_TO_ILS[fromCurrency] || 1);
+    return inILS / (RATES_TO_ILS[toCurrency] || 1);
+}
 
 const I18N = {
     en: {
@@ -224,8 +284,29 @@ const I18N = {
         standingBtn:             '🔄 Standing Orders',
         remaining:               'remaining',
         overBudget:              'over budget',
-        labelDateFilter:         '📅 Filter by date',
-        labelClearDate:          '✕ Clear',
+        errorFillField:          '⚠️ Please fill in:',
+        fieldName:               'Name',
+        fieldCategory:           'Category',
+        fieldAmount:             'Amount',
+        fieldDate:               'Date',
+        wrongLang:               '⚠️ Please type in English',
+        welcome:                 'Welcome',
+        enterName:               'What is your name?',
+        labelTime:               'Time (optional)',
+        timePlaceholder:         'Hour of purchase',
+        monthBarLabel:           '📅 View month:',
+        downloadBtn:             '⬇ Excel',
+        downloadColDate:         'Date',
+        downloadColName:         'Name',
+        downloadColCategory:     'Category',
+        downloadColAmount:       'Amount',
+        downloadColCurrency:     'Currency',
+        yearlyViewBtn:           '📅 Year',
+        labelYearlyView:         'Yearly View',
+        labelYearlyTotal:        'Total for the Year',
+        labelYearlyByCategory:   'By Category',
+        yearlyNoData:            'No expenses recorded for this year',
+        months:                  'months',
         monthNames:          ['January','February','March','April','May','June','July','August','September','October','November','December'],
     },
     he: {
@@ -260,8 +341,29 @@ const I18N = {
         standingBtn:             '🔄 הוראות קבע',
         remaining:               'נותר',
         overBudget:              'חריגה מהתקציב',
-        labelDateFilter:         '📅 סנן לפי תאריך',
-        labelClearDate:          '✕ נקה',
+        errorFillField:          '⚠️ אנא מלא:',
+        fieldName:               'שם',
+        fieldCategory:           'קטגוריה',
+        fieldAmount:             'סכום',
+        fieldDate:               'תאריך',
+        wrongLang:               '⚠️ אנא הקלד בעברית',
+        welcome:                 'שלום',
+        enterName:               'מה שמך?',
+        labelTime:               'שעה (אופציונלי)',
+        timePlaceholder:         'שעת הרכישה',
+        monthBarLabel:           '📅 צפייה בחודש:',
+        downloadBtn:             '⬇ אקסל',
+        downloadColDate:         'תאריך',
+        downloadColName:         'שם',
+        downloadColCategory:     'קטגוריה',
+        downloadColAmount:       'סכום',
+        downloadColCurrency:     'מטבע',
+        yearlyViewBtn:           '📅 שנה',
+        labelYearlyView:         'סיכום שנתי',
+        labelYearlyTotal:        'סה"כ לשנה',
+        labelYearlyByCategory:   'לפי קטגוריה',
+        yearlyNoData:            'אין הוצאות לשנה זו',
+        months:                  'חודשים',
         monthNames:          ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'],
     }
 };
@@ -283,6 +385,9 @@ const state = {
     selectedCategory:         null,
     standingSelectedCategory: null,
     chart:                    null,
+    yearlyViewYear:           new Date().getFullYear(),
+    yearlyExpenses:           [],
+    expenseInputCurrency:     'ILS',
 };
 
 // ============================================================
@@ -290,9 +395,49 @@ const state = {
 // ============================================================
 function t(key) { return I18N[state.lang][key] || key; }
 
-function fmt(amount) {
+function renderWelcome() {
+    const name = localStorage.getItem('userName') || '';
+    const el   = document.getElementById('headerWelcome');
+    el.textContent = name ? `${t('welcome')}, ${name} 👋` : '';
+}
+
+function updateClock() {
+    const now    = new Date();
+    const locale = state.lang === 'he' ? 'he-IL' : 'en-US';
+    const dateStr = now.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const el = document.getElementById('headerClock');
+    if (el) el.textContent = `${dateStr} · ${timeStr}`;
+}
+
+function openTimePicker() {
+    const now = new Date();
+    const hh  = String(now.getHours()).padStart(2, '0');
+    const mm  = String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('purchaseTime').value       = `${hh}:${mm}`;
+    document.getElementById('timeToggleBtn').style.display  = 'none';
+    document.getElementById('timeInputRow').style.display   = 'flex';
+}
+
+function resetTimePicker() {
+    document.getElementById('purchaseTime').value          = '';
+    document.getElementById('timeInputRow').style.display  = 'none';
+    document.getElementById('timeToggleBtn').style.display = 'block';
+}
+
+function changeUserName() {
+    const current = localStorage.getItem('userName') || '';
+    const name    = prompt(t('enterName'), current);
+    if (name !== null && name.trim()) {
+        localStorage.setItem('userName', name.trim());
+        renderWelcome();
+    }
+}
+
+function fmt(amount, fromCurrency = null) {
     const sym = CURRENCY_SYMBOLS[state.currency];
-    return `${sym}${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    const converted = fromCurrency ? convertAmount(amount, fromCurrency, state.currency) : amount;
+    return `${sym}${parseFloat(converted).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 function getCat(key) { return CATEGORIES.find(c => c.key === key) || { icon: '💰', en: key, he: key }; }
@@ -347,6 +492,81 @@ async function addStandingOrder(data) {
 
 async function deleteStandingOrder(id) { await fetch(`${API_URL}/standing-orders/${id}`, { method: 'DELETE' }); }
 
+async function fetchYearlyExpenses(year) {
+    const res = await fetch(`${API_URL}/expenses?year=${year}`);
+    state.yearlyExpenses = await res.json();
+}
+
+async function patchExpense(id, data) {
+    await fetch(`${API_URL}/expenses/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    });
+}
+
+async function patchStandingOrder(id, data) {
+    await fetch(`${API_URL}/standing-orders/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    });
+}
+
+function enforceInputLang(inputId, warnId) {
+    const input = document.getElementById(inputId);
+    const warn  = document.getElementById(warnId);
+    const original = input.value;
+    const filtered = state.lang === 'en'
+        ? original.replace(/[֐-׿]/g, '')
+        : original.replace(/[a-zA-Z]/g, '');
+
+    if (filtered !== original) {
+        input.value = filtered;
+        warn.textContent = t('wrongLang');
+        warn.style.display = 'block';
+        clearTimeout(warn._timer);
+        warn._timer = setTimeout(() => { warn.style.display = 'none'; }, 2000);
+    }
+}
+
+async function translateText(text, from, to) {
+    if (!text.trim()) return '';
+    try {
+        const res  = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`);
+        const data = await res.json();
+        return data.responseData?.translatedText || '';
+    } catch { return ''; }
+}
+
+async function autoTranslate(srcId, dstId, from, to) {
+    const src  = document.getElementById(srcId);
+    const dst  = document.getElementById(dstId);
+    const text = src.value.trim();
+    if (!text || dst.value.trim()) return;
+    const origPlaceholder = dst.placeholder;
+    dst.placeholder = from === 'en' ? 'Translating...' : 'מתרגם...';
+    dst.disabled = true;
+    const translated = await translateText(text, from, to);
+    if (translated) dst.value = translated;
+    dst.placeholder = origPlaceholder;
+    dst.disabled = false;
+}
+
+async function ensureTranslations() {
+    const missingExpenses = state.expenses.filter(e => !e.name_he && e.name);
+    const missingOrders   = state.standingOrders.filter(o => !o.name_he && o.name);
+    if (missingExpenses.length === 0 && missingOrders.length === 0) return;
+
+    await Promise.all([
+        ...missingExpenses.map(async e => {
+            const tr = await translateText(e.name, 'en', 'he');
+            if (tr) { e.name_he = tr; await patchExpense(e.id, { name_he: tr }); }
+        }),
+        ...missingOrders.map(async o => {
+            const tr = await translateText(o.name, 'en', 'he');
+            if (tr) { o.name_he = tr; await patchStandingOrder(o.id, { name_he: tr }); }
+        }),
+    ]);
+    renderAll();
+}
+
 // ============================================================
 // RENDER
 // ============================================================
@@ -390,8 +610,8 @@ function renderCategoryFilter() {
 }
 
 function renderSummary() {
-    const standingTotal = state.standingOrders.reduce((s, o) => s + o.amount, 0);
-    const expenseTotal  = state.expenses.reduce((s, e) => s + e.amount, 0);
+    const standingTotal = state.standingOrders.reduce((s, o) => s + convertAmount(o.amount, o.currency, state.currency), 0);
+    const expenseTotal  = state.expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
     const total = expenseTotal + (state.filter === 'month' ? standingTotal : 0);
     document.getElementById('totalAmount').textContent = fmt(total);
     const note = document.getElementById('standingNote');
@@ -406,7 +626,9 @@ function renderSummary() {
 function renderChart() {
     const ctx   = document.getElementById('categoryChart').getContext('2d');
     const spend = {};
-    state.expenses.forEach(e => { spend[e.category] = (spend[e.category] || 0) + e.amount; });
+    state.expenses.forEach(e => { spend[e.category] = (spend[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency); });
+
+    state.standingOrders.forEach(o => { spend[o.category] = (spend[o.category] || 0) + convertAmount(o.amount, o.currency, state.currency); });
 
     const labels = [], data = [];
     const colors = ['#4F46E5','#7C3AED','#EC4899','#EF4444','#F97316','#EAB308','#22C55E','#14B8A6','#3B82F6','#6B7280'];
@@ -428,7 +650,11 @@ function renderChart() {
             responsive: true, maintainAspectRatio: true,
             plugins: {
                 legend: { display: false },
-                tooltip: { callbacks: { label: c => ` ${fmt(c.raw)}` } }
+                tooltip: { callbacks: { label: c => {
+                    const total = c.dataset.data.reduce((a, b) => a + b, 0);
+                    const pct   = total > 0 ? Math.round((c.raw / total) * 100) : 0;
+                    return ` ${fmt(c.raw)}  (${pct}%)`;
+                }}}
             },
             cutout: '65%',
         }
@@ -444,10 +670,12 @@ function renderBudgetBars() {
 
     state.budgets.forEach(b => {
         const cat  = getCat(b.category);
-        const spent = state.expenses.filter(e => e.category === b.category).reduce((s, e) => s + e.amount, 0);
-        const pct  = Math.min((spent / b.limit_amount) * 100, 100);
-        const over = spent > b.limit_amount;
-        const remaining = b.limit_amount - spent;
+        const spent = state.expenses.filter(e => e.category === b.category)
+            .reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+        const displayLimit = convertAmount(b.limit_amount, 'ILS', state.currency);
+        const pct  = Math.min((spent / displayLimit) * 100, 100);
+        const over = spent > displayLimit;
+        const remaining = displayLimit - spent;
         const item = document.createElement('div');
         item.className = 'budget-bar-item';
         item.innerHTML = `
@@ -455,7 +683,7 @@ function renderBudgetBars() {
                 <span>${cat.icon} ${state.lang === 'he' ? cat.he : cat.en}</span>
                 <span class="budget-amounts ${over ? 'over' : ''}">
                     ${over ? '<span class="alert-dot">!</span>' : ''}
-                    ${fmt(spent)} / ${fmt(b.limit_amount)}
+                    ${fmt(spent)} / ${fmt(displayLimit)}
                 </span>
             </div>
             <div class="progress-track">
@@ -478,7 +706,7 @@ function renderExpenseList() {
     let expenses = [...state.expenses];
     if (state.filterCategory) expenses = expenses.filter(e => e.category === state.filterCategory);
 
-    const total   = expenses.reduce((s, e) => s + e.amount, 0);
+    const total   = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
     const totalEl = document.getElementById('categoryTotal');
     if (state.filterCategory && expenses.length > 0) {
         const cat = getCat(state.filterCategory);
@@ -507,14 +735,17 @@ function renderExpenseList() {
         }
         const item = document.createElement('div');
         item.className = 'expense-item';
+        const displayName = state.lang === 'he'
+            ? (expense.name_he || expense.name)
+            : (expense.name || expense.name_he);
         item.innerHTML = `
             <div class="expense-icon">${cat.icon}</div>
             <div class="expense-details">
-                <span class="expense-name" dir="auto">${expense.name}</span>
-                <span class="expense-meta">${expense.date}${!state.sortByCategory ? ' · ' + catName(expense.category) : ''}</span>
+                <span class="expense-name" dir="auto">${displayName}</span>
+                <span class="expense-meta">${expense.date}${expense.purchase_time ? ' ' + expense.purchase_time : ''}${!state.sortByCategory ? ' · ' + catName(expense.category) : ''}</span>
             </div>
             <div class="expense-right">
-                <span class="expense-amount">${fmt(expense.amount)}</span>
+                <span class="expense-amount">${fmt(expense.amount, expense.currency)}</span>
                 <button class="btn-delete" onclick="handleDeleteExpense(${expense.id})">×</button>
             </div>
         `;
@@ -525,7 +756,7 @@ function renderExpenseList() {
 function renderStandingOrders() {
     const container = document.getElementById('standingOrdersDisplay');
     container.innerHTML = '';
-    const total = state.standingOrders.reduce((s, o) => s + o.amount, 0);
+    const total = state.standingOrders.reduce((s, o) => s + convertAmount(o.amount, o.currency, state.currency), 0);
     document.getElementById('standingTotal').textContent = fmt(total);
 
     if (state.standingOrders.length === 0) {
@@ -533,16 +764,19 @@ function renderStandingOrders() {
     } else {
         state.standingOrders.forEach(order => {
             const cat  = getCat(order.category);
+            const displayName = state.lang === 'he'
+                ? (order.name_he || order.name)
+                : (order.name || order.name_he);
             const item = document.createElement('div');
             item.className = 'expense-item';
             item.innerHTML = `
                 <div class="expense-icon">🔄</div>
                 <div class="expense-details">
-                    <span class="expense-name">${order.name}</span>
+                    <span class="expense-name" dir="auto">${displayName}</span>
                     <span class="expense-meta">${cat.icon} ${catName(order.category)}</span>
                 </div>
                 <div class="expense-right">
-                    <span class="expense-amount">${fmt(order.amount)}</span>
+                    <span class="expense-amount">${fmt(order.amount, order.currency)}</span>
                 </div>
             `;
             container.appendChild(item);
@@ -554,13 +788,16 @@ function renderStandingOrders() {
     modalList.innerHTML = '';
     state.standingOrders.forEach(order => {
         const cat  = getCat(order.category);
+        const displayName = state.lang === 'he'
+            ? (order.name_he || order.name)
+            : (order.name || order.name_he);
         const item = document.createElement('div');
         item.className = 'expense-item';
         item.innerHTML = `
             <div class="expense-icon">🔄</div>
             <div class="expense-details">
-                <span class="expense-name">${order.name}</span>
-                <span class="expense-meta">${cat.icon} ${catName(order.category)} · ${fmt(order.amount)}</span>
+                <span class="expense-name" dir="auto">${displayName}</span>
+                <span class="expense-meta">${cat.icon} ${catName(order.category)} · ${fmt(order.amount, order.currency)}</span>
             </div>
             <div class="expense-right">
                 <button class="btn-delete" onclick="handleDeleteStanding(${order.id})">×</button>
@@ -589,6 +826,104 @@ function renderBudgetForm() {
     });
 }
 
+function renderYearlyView() {
+    const expenses = state.yearlyExpenses;
+    document.getElementById('yearDisplay').textContent = state.yearlyViewYear;
+
+    // Which months actually have data
+    const monthNums = [...new Set(expenses.map(e => parseInt(e.date.slice(5, 7))))].sort((a, b) => a - b);
+    const names     = t('monthNames');
+    let monthsLabel = '';
+    if (monthNums.length === 0) {
+        monthsLabel = t('yearlyNoData');
+    } else if (monthNums.length === 1) {
+        monthsLabel = `${names[monthNums[0] - 1]} · 1 ${t('months').replace('s','')}`;
+    } else {
+        monthsLabel = `${names[monthNums[0] - 1]} – ${names[monthNums[monthNums.length - 1] - 1]} · ${monthNums.length} ${t('months')}`;
+    }
+    document.getElementById('yearlyMonthsLabel').textContent = monthsLabel;
+
+    // Total
+    const total = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+    document.getElementById('yearlyTotalAmount').textContent = fmt(total);
+
+    // Category breakdown
+    const breakdown = document.getElementById('yearlyCategoryBreakdown');
+    breakdown.innerHTML = '';
+    if (expenses.length === 0) {
+        breakdown.innerHTML = `<p class="empty-text">${t('yearlyNoData')}</p>`;
+        return;
+    }
+
+    const spend = {};
+    expenses.forEach(e => {
+        spend[e.category] = (spend[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency);
+    });
+
+    Object.entries(spend).sort((a, b) => b[1] - a[1]).forEach(([key, amount]) => {
+        const cat = getCat(key);
+        const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
+        const row = document.createElement('div');
+        row.className = 'yearly-cat-row';
+        row.innerHTML = `
+            <div class="yearly-cat-header">
+                <span class="yearly-cat-name">${cat.icon} ${state.lang === 'he' ? cat.he : cat.en}</span>
+                <div class="yearly-cat-right">
+                    <span class="yearly-cat-amount">${fmt(amount)}</span>
+                    <span class="yearly-cat-pct">${pct}%</span>
+                </div>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" style="width:${pct}%"></div>
+            </div>
+        `;
+        breakdown.appendChild(row);
+    });
+}
+
+async function openYearlyModal() {
+    await fetchYearlyExpenses(state.yearlyViewYear);
+    renderYearlyView();
+    openModal('yearlyModal');
+}
+
+function downloadCSV() {
+    const expenses = state.filterCategory
+        ? state.expenses.filter(e => e.category === state.filterCategory)
+        : state.expenses;
+
+    const headers = [
+        t('downloadColDate'),
+        t('downloadColName'),
+        t('downloadColCategory'),
+        t('downloadColAmount'),
+        t('downloadColCurrency'),
+    ];
+
+    const rows = expenses.map(e => {
+        const displayName = state.lang === 'he' ? (e.name_he || e.name) : (e.name || e.name_he);
+        return [
+            e.date,
+            `"${(displayName || '').replace(/"/g, '""')}"`,
+            `"${catName(e.category)}"`,
+            e.amount,
+            e.currency,
+        ];
+    });
+
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    // BOM ensures Excel reads Hebrew/special chars correctly
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `expenses-${state.currentMonth}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 function updateLanguage() {
     const dir = state.lang === 'he' ? 'rtl' : 'ltr';
     document.documentElement.setAttribute('lang', state.lang);
@@ -600,25 +935,38 @@ function updateLanguage() {
         if (el) el.textContent = t(k);
     });
     document.getElementById('langToggle').textContent    = state.lang === 'en' ? '🌐 HE' : '🌐 EN';
+    const isHe = state.lang === 'he';
+    document.getElementById('expenseName').style.display    = isHe ? 'none' : '';
+    document.getElementById('expenseNameHe').style.display  = isHe ? '' : 'none';
+    document.getElementById('standingName').style.display   = isHe ? 'none' : '';
+    document.getElementById('standingNameHe').style.display = isHe ? '' : 'none';
     document.getElementById('filterMonth').textContent   = t('filterMonth');
     document.getElementById('filterWeek').textContent    = t('filterWeek');
     document.getElementById('filterToday').textContent   = t('filterToday');
     document.getElementById('submitExpense').textContent  = t('addExpenseBtn');
     document.getElementById('submitStanding').textContent = t('addStandingBtn');
     document.getElementById('sortToggle').textContent    = state.sortByCategory ? t('unsortBtn') : t('sortBtn');
-    document.getElementById('monthDisplay').textContent  = monthLabel();
+    document.getElementById('downloadBtn').textContent   = t('downloadBtn');
+    document.getElementById('monthPicker').value = state.currentMonth;
+    document.getElementById('monthBarLabel').textContent = t('monthBarLabel');
     document.getElementById('openAddModal2').textContent  = t('newExpenseBtn');
     document.getElementById('openBudgetModal').textContent  = t('budgetsBtn');
     document.getElementById('openStandingModal').textContent = t('standingBtn');
-    document.getElementById('labelDateFilter').textContent   = t('labelDateFilter');
-    document.getElementById('clearDateFilter').textContent   = t('labelClearDate');
+    document.getElementById('openYearlyModal').textContent   = t('yearlyViewBtn');
+    document.getElementById('labelYearlyView').textContent   = t('labelYearlyView');
+    document.getElementById('labelYearlyTotal').textContent  = t('labelYearlyTotal');
+    document.getElementById('labelYearlyByCategory').textContent = t('labelYearlyByCategory');
+    renderWelcome();
+    updateClock();
+    document.getElementById('timeToggleLabel').textContent = t('timePlaceholder');
+    document.getElementById('labelTime').textContent        = t('labelTime');
     renderCategoryDropdown();
     renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
     renderCategoryFilter();
 }
 
 function renderAll() {
-    document.getElementById('monthDisplay').textContent = monthLabel();
+    document.getElementById('monthPicker').value = state.currentMonth;
     document.getElementById('filterBar').style.display  = isCurrentMonth() ? 'flex' : 'none';
     renderSummary();
     renderChart();
@@ -664,15 +1012,40 @@ async function handleSaveBudget(category) {
 }
 
 async function handleAddExpense() {
-    const name     = document.getElementById('expenseName').value.trim();
+    const isHe        = state.lang === 'he';
+    const primaryVal  = isHe
+        ? document.getElementById('expenseNameHe').value.trim()
+        : document.getElementById('expenseName').value.trim();
     const amount   = parseFloat(document.getElementById('expenseAmount').value);
     const date     = document.getElementById('expenseDate').value;
     const selected = document.getElementById('categorySelect').value;
     const custom   = document.getElementById('customCategory').value.trim();
     const category = selected === 'other' && custom ? custom : selected;
-    if (!name || !amount || !category || !date) return;
-    await addExpense({ name, amount, category, date, currency: state.currency });
+
+    const missing = [];
+    if (!primaryVal)              missing.push(t('fieldName'));
+    if (!category)                missing.push(t('fieldCategory'));
+    if (!amount || isNaN(amount)) missing.push(t('fieldAmount'));
+    if (!date)                    missing.push(t('fieldDate'));
+
+    const errorEl   = document.getElementById('expenseError');
+    const submitBtn = document.getElementById('submitExpense');
+    if (missing.length > 0) {
+        errorEl.textContent = `${t('errorFillField')} ${missing.join(', ')}`;
+        errorEl.style.display = 'block';
+        return;
+    }
+    errorEl.style.display = 'none';
+    submitBtn.disabled = true;
+
+    const name         = isHe ? (await translateText(primaryVal, 'he', 'en') || primaryVal) : primaryVal;
+    const nameHe       = isHe ? primaryVal : (await translateText(primaryVal, 'en', 'he') || null);
+    const purchaseTime = document.getElementById('purchaseTime').value || null;
+
+    submitBtn.disabled = false;
+    await addExpense({ name, name_he: nameHe || null, amount, category, date, purchase_time: purchaseTime, currency: state.expenseInputCurrency });
     document.getElementById('expenseName').value    = '';
+    document.getElementById('expenseNameHe').value  = '';
     document.getElementById('expenseAmount').value  = '';
     document.getElementById('categorySelect').value = '';
     document.getElementById('customCategory').value = '';
@@ -684,17 +1057,41 @@ async function handleAddExpense() {
 }
 
 async function handleAddStanding() {
-    const name     = document.getElementById('standingName').value.trim();
+    const isHe       = state.lang === 'he';
+    const primaryVal = isHe
+        ? document.getElementById('standingNameHe').value.trim()
+        : document.getElementById('standingName').value.trim();
     const amount   = parseFloat(document.getElementById('standingAmount').value);
     const category = state.standingSelectedCategory;
-    if (!name || !amount || !category) return;
-    await addStandingOrder({ name, amount, category, currency: state.currency });
-    document.getElementById('standingName').value   = '';
-    document.getElementById('standingAmount').value = '';
+
+    const missing = [];
+    if (!primaryVal)              missing.push(t('fieldName'));
+    if (!category)                missing.push(t('fieldCategory'));
+    if (!amount || isNaN(amount)) missing.push(t('fieldAmount'));
+
+    const errorEl   = document.getElementById('standingError');
+    const submitBtn = document.getElementById('submitStanding');
+    if (missing.length > 0) {
+        errorEl.textContent = `${t('errorFillField')} ${missing.join(', ')}`;
+        errorEl.style.display = 'block';
+        return;
+    }
+    errorEl.style.display = 'none';
+    submitBtn.disabled = true;
+
+    const name   = isHe ? (await translateText(primaryVal, 'he', 'en') || primaryVal) : primaryVal;
+    const nameHe = isHe ? primaryVal : (await translateText(primaryVal, 'en', 'he') || null);
+
+    submitBtn.disabled = false;
+    await addStandingOrder({ name, name_he: nameHe || null, amount, category, currency: state.currency });
+    document.getElementById('standingName').value    = '';
+    document.getElementById('standingNameHe').value  = '';
+    document.getElementById('standingAmount').value  = '';
     state.standingSelectedCategory = null;
     renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
     await fetchStandingOrders();
     renderStandingOrders();
+    ensureTranslations();
 }
 
 async function changeMonth(direction) {
@@ -720,15 +1117,32 @@ document.getElementById('langToggle').addEventListener('click', () => {
     state.lang = state.lang === 'en' ? 'he' : 'en';
     updateLanguage();
     renderAll();
+    ensureTranslations();
 });
 
 document.getElementById('currencySelect').addEventListener('change', e => {
     state.currency = e.target.value;
+    syncExpenseCurrencyPills(state.currency);
     renderAll();
 });
 
 document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
 document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+
+document.getElementById('monthPicker').addEventListener('change', async e => {
+    const val = e.target.value;
+    if (!val) return;
+    const now = new Date();
+    const max = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    if (val > max) { e.target.value = state.currentMonth; return; }
+    state.currentMonth = val;
+    state.filter = 'month';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('filterMonth').classList.add('active');
+    await fetchExpenses();
+    await fetchBudgets();
+    renderAll();
+});
 
 document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -740,51 +1154,14 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     });
 });
 
-document.getElementById('categoryFilter').addEventListener('change', e => {
-    state.filterCategory = e.target.value;
-    renderExpenseList();
+document.getElementById('calBtn').addEventListener('click', () => {
+    document.getElementById('dateFilter').showPicker();
 });
-
-document.getElementById('sortToggle').addEventListener('click', () => {
-    state.sortByCategory = !state.sortByCategory;
-    document.getElementById('sortToggle').textContent = state.sortByCategory ? t('unsortBtn') : t('sortBtn');
-    renderExpenseList();
-});
-
-function openAddExpenseModal() {
-    document.getElementById('expenseDate').value    = new Date().toISOString().slice(0, 10);
-    document.getElementById('categorySelect').value = '';
-    document.getElementById('customCategory').value = '';
-    document.getElementById('customCategory').style.display = 'none';
-    openModal('addModal');
-}
-
-document.getElementById('openAddModal').addEventListener('click', openAddExpenseModal);
-document.getElementById('openAddModal2').addEventListener('click', openAddExpenseModal);
-
-document.getElementById('openBudgetModal').addEventListener('click', () => {
-    renderBudgetForm();
-    openModal('budgetModal');
-});
-
-document.getElementById('openStandingModal').addEventListener('click', () => {
-    renderStandingOrders();
-    openModal('standingModal');
-});
-
-document.getElementById('categorySelect').addEventListener('change', e => {
-    const custom = document.getElementById('customCategory');
-    custom.style.display = e.target.value === 'other' ? 'block' : 'none';
-    if (e.target.value !== 'other') custom.value = '';
-});
-
-document.getElementById('submitExpense').addEventListener('click', handleAddExpense);
-document.getElementById('submitStanding').addEventListener('click', handleAddStanding);
 
 document.getElementById('dateFilter').addEventListener('change', async e => {
     const val = e.target.value;
     state.specificDate = val || null;
-    document.getElementById('clearDateFilter').style.display = val ? 'inline-block' : 'none';
+    document.getElementById('clearDateFilter').style.display = val ? 'inline-flex' : 'none';
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     await fetchExpenses();
     renderAll();
@@ -799,18 +1176,178 @@ document.getElementById('clearDateFilter').addEventListener('click', async () =>
     renderAll();
 });
 
+document.getElementById('categoryFilter').addEventListener('change', e => {
+    state.filterCategory = e.target.value;
+    renderExpenseList();
+});
+
+document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
+
+document.getElementById('sortToggle').addEventListener('click', () => {
+    state.sortByCategory = !state.sortByCategory;
+    document.getElementById('sortToggle').textContent = state.sortByCategory ? t('unsortBtn') : t('sortBtn');
+    renderExpenseList();
+});
+
+function syncExpenseCurrencyPills(currency) {
+    state.expenseInputCurrency = currency;
+    document.getElementById('expenseCurrencyBadge').textContent = CURRENCY_SYMBOLS[currency];
+    document.querySelectorAll('.currency-pill').forEach(b => {
+        b.classList.toggle('active', b.dataset.currency === currency);
+    });
+}
+
+function openAddExpenseModal() {
+    document.getElementById('expenseDate').value    = new Date().toISOString().slice(0, 10);
+    document.getElementById('expenseName').value    = '';
+    document.getElementById('expenseNameHe').value  = '';
+    document.getElementById('expenseAmount').value  = '';
+    document.getElementById('categorySelect').value = '';
+    document.getElementById('customCategory').value = '';
+    document.getElementById('customCategory').style.display = 'none';
+    document.getElementById('expenseError').style.display   = 'none';
+    document.getElementById('expenseLangWarn').style.display = 'none';
+    document.getElementById('receiptPreview').style.display = 'none';
+    document.getElementById('receiptStatus').textContent    = '';
+    resetTimePicker();
+    syncExpenseCurrencyPills(state.currency);
+    openModal('addModal');
+}
+
+document.getElementById('openAddModal').addEventListener('click', openAddExpenseModal);
+document.getElementById('openAddModal2').addEventListener('click', openAddExpenseModal);
+
+document.getElementById('openBudgetModal').addEventListener('click', () => {
+    renderBudgetForm();
+    openModal('budgetModal');
+});
+
+document.getElementById('openYearlyModal').addEventListener('click', openYearlyModal);
+
+document.getElementById('prevYear').addEventListener('click', async () => {
+    state.yearlyViewYear--;
+    await fetchYearlyExpenses(state.yearlyViewYear);
+    renderYearlyView();
+});
+
+document.getElementById('nextYear').addEventListener('click', async () => {
+    if (state.yearlyViewYear >= new Date().getFullYear()) return;
+    state.yearlyViewYear++;
+    await fetchYearlyExpenses(state.yearlyViewYear);
+    renderYearlyView();
+});
+
+document.getElementById('openStandingModal').addEventListener('click', () => {
+    document.getElementById('standingError').style.display    = 'none';
+    document.getElementById('standingLangWarn').style.display = 'none';
+    renderStandingOrders();
+    openModal('standingModal');
+});
+
+document.getElementById('categorySelect').addEventListener('change', e => {
+    const custom = document.getElementById('customCategory');
+    custom.style.display = e.target.value === 'other' ? 'block' : 'none';
+    if (e.target.value !== 'other') custom.value = '';
+});
+
+document.getElementById('clearTime').addEventListener('click', resetTimePicker);
+
+document.querySelectorAll('.currency-pill').forEach(btn => {
+    btn.addEventListener('click', () => syncExpenseCurrencyPills(btn.dataset.currency));
+});
+
+// ---- Receipt scanner ----
+document.getElementById('receiptScanBtn').addEventListener('click', () => {
+    document.getElementById('receiptFileInput').click();
+});
+
+document.getElementById('receiptFileInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const preview = document.getElementById('receiptPreview');
+    const status  = document.getElementById('receiptStatus');
+    const btn     = document.getElementById('receiptScanBtn');
+
+    const objUrl = URL.createObjectURL(file);
+    preview.src = objUrl;
+    preview.style.display = 'block';
+    preview.onload = () => URL.revokeObjectURL(objUrl);
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Reading...';
+    status.textContent = '';
+
+    try {
+        const b64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload  = ev => res(ev.target.result.split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+        });
+
+        const resp = await fetch(`${API_URL}/parse-receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: b64, media_type: file.type || 'image/jpeg' })
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        if (data.name) {
+            document.getElementById('expenseName').value   = data.name;
+            document.getElementById('expenseNameHe').value = data.name;
+        }
+        if (data.amount != null) document.getElementById('expenseAmount').value = data.amount;
+        if (data.date)  document.getElementById('expenseDate').value = data.date;
+        if (data.category) {
+            const sel = document.getElementById('categorySelect');
+            for (const opt of sel.options) {
+                if (opt.value === data.category) { sel.value = data.category; break; }
+            }
+        }
+        status.textContent = '✅ Fields filled — check and confirm';
+    } catch (err) {
+        status.textContent = '❌ ' + (err.message || 'Could not read receipt');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📷 Scan Receipt';
+        e.target.value = '';
+    }
+});
+
+document.getElementById('submitExpense').addEventListener('click', handleAddExpense);
+document.getElementById('submitStanding').addEventListener('click', handleAddStanding);
+
+document.getElementById('expenseName').addEventListener('input',    () => enforceInputLang('expenseName',   'expenseLangWarn'));
+document.getElementById('expenseNameHe').addEventListener('input',  () => enforceInputLang('expenseNameHe', 'expenseLangWarn'));
+document.getElementById('standingName').addEventListener('input',   () => enforceInputLang('standingName',   'standingLangWarn'));
+document.getElementById('standingNameHe').addEventListener('input', () => enforceInputLang('standingNameHe', 'standingLangWarn'));
+
+
+
 // ============================================================
 // INIT
 // ============================================================
 async function init() {
+    const now = new Date();
+    const maxMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const picker = document.getElementById('monthPicker');
+    picker.max   = maxMonth;
+    picker.value = state.currentMonth;
+
     renderCategoryDropdown();
     renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
     renderCategoryFilter();
     updateLanguage();
+    if (!localStorage.getItem('userName')) changeUserName();
+    updateClock();
+    setInterval(updateClock, 1000);
 
     try {
         await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
         renderAll();
+        ensureTranslations();
     } catch (e) {
         console.error('Failed to load data from API:', e);
     }

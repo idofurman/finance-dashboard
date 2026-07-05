@@ -22,3 +22,9 @@ spec:
           env:
             - name: DATABASE_URL
               value:  postgresql://admin:secret@db:5432/finance
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: finance-secrets
+                  key: anthropic-api-key
+                  optional: true

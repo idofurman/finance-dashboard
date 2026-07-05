@@ -20,12 +20,14 @@ def init_db():
     cur = conn.cursor()
     cur.execute('''
         CREATE TABLE IF NOT EXISTS expenses (
-            id       SERIAL PRIMARY KEY,
-            name     TEXT    NOT NULL,
-            amount   NUMERIC NOT NULL,
-            category TEXT    NOT NULL,
-            date     DATE    NOT NULL DEFAULT CURRENT_DATE,
-            currency TEXT    NOT NULL DEFAULT 'ILS'
+            id            SERIAL PRIMARY KEY,
+            name          TEXT    NOT NULL,
+            name_he       TEXT,
+            amount        NUMERIC NOT NULL,
+            category      TEXT    NOT NULL,
+            date          DATE    NOT NULL DEFAULT CURRENT_DATE,
+            purchase_time TEXT,
+            currency      TEXT    NOT NULL DEFAULT 'ILS'
         )
     ''')
     cur.execute('''
@@ -39,13 +41,18 @@ def init_db():
     ''')
     cur.execute('''
         CREATE TABLE IF NOT EXISTS standing_orders (
-            id       SERIAL PRIMARY KEY,
-            name     TEXT    NOT NULL,
-            amount   NUMERIC NOT NULL,
-            category TEXT    NOT NULL,
-            currency TEXT    NOT NULL DEFAULT 'ILS'
+            id      SERIAL PRIMARY KEY,
+            name    TEXT    NOT NULL,
+            name_he TEXT,
+            amount  NUMERIC NOT NULL,
+            category TEXT   NOT NULL,
+            currency TEXT   NOT NULL DEFAULT 'ILS'
         )
     ''')
+    # migrate existing tables that may not have name_he yet
+    cur.execute("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS name_he TEXT")
+    cur.execute("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS purchase_time TEXT")
+    cur.execute("ALTER TABLE standing_orders ADD COLUMN IF NOT EXISTS name_he TEXT")
     conn.commit()
     cur.close()
     conn.close()
@@ -75,10 +82,14 @@ def expenses_route():
         params = []
 
         specific_date = request.args.get('date')
+        year          = request.args.get('year')
 
         if specific_date:
             query += " WHERE date = %s"
             params = [specific_date]
+        elif year:
+            query += " WHERE EXTRACT(YEAR FROM date) = %s"
+            params = [int(year)]
         elif month:
             if filter_type == 'today':
                 query += " WHERE TO_CHAR(date, 'YYYY-MM') = %s AND date = %s"
@@ -107,9 +118,9 @@ def expenses_route():
     elif request.method == "POST":
         data = request.get_json()
         cur.execute(
-            "INSERT INTO expenses (name, amount, category, date, currency) VALUES (%s, %s, %s, %s, %s) RETURNING *",
-            (data['name'], data['amount'], data['category'],
-             data.get('date', date.today().isoformat()), data.get('currency', 'ILS'))
+            "INSERT INTO expenses (name, name_he, amount, category, date, purchase_time, currency) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
+            (data['name'], data.get('name_he'), data['amount'], data['category'],
+             data.get('date', date.today().isoformat()), data.get('purchase_time'), data.get('currency', 'ILS'))
         )
         expense = dict(cur.fetchone())
         expense['date'] = expense['date'].isoformat()
@@ -120,15 +131,34 @@ def expenses_route():
         return jsonify(expense), 201
 
 
-@app.route("/expenses/<int:expense_id>", methods=["DELETE"])
-def delete_expense(expense_id):
+@app.route("/expenses/<int:expense_id>", methods=["DELETE", "PATCH"])
+def delete_or_patch_expense(expense_id):
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM expenses WHERE id = %s", (expense_id,))
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    if request.method == "DELETE":
+        cur.execute("DELETE FROM expenses WHERE id = %s", (expense_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"deleted": expense_id})
+    data = request.get_json()
+    fields, values = [], []
+    if 'name'    in data: fields.append("name = %s");    values.append(data['name'])
+    if 'name_he' in data: fields.append("name_he = %s"); values.append(data['name_he'])
+    if not fields:
+        return jsonify({"error": "no fields"}), 400
+    values.append(expense_id)
+    cur.execute(f"UPDATE expenses SET {', '.join(fields)} WHERE id = %s RETURNING *", values)
+    row = cur.fetchone()
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({"deleted": expense_id})
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    expense = dict(row)
+    expense['date'] = expense['date'].isoformat()
+    expense['amount'] = float(expense['amount'])
+    return jsonify(expense)
 
 
 @app.route("/budgets", methods=["GET", "POST"])
@@ -187,8 +217,8 @@ def standing_orders_route():
     elif request.method == "POST":
         data = request.get_json()
         cur.execute(
-            "INSERT INTO standing_orders (name, amount, category, currency) VALUES (%s, %s, %s, %s) RETURNING *",
-            (data['name'], data['amount'], data['category'], data.get('currency', 'ILS'))
+            "INSERT INTO standing_orders (name, name_he, amount, category, currency) VALUES (%s, %s, %s, %s, %s) RETURNING *",
+            (data['name'], data.get('name_he'), data['amount'], data['category'], data.get('currency', 'ILS'))
         )
         order = dict(cur.fetchone())
         order['amount'] = float(order['amount'])
@@ -198,15 +228,93 @@ def standing_orders_route():
         return jsonify(order), 201
 
 
-@app.route("/standing-orders/<int:order_id>", methods=["DELETE"])
-def delete_standing_order(order_id):
+@app.route("/standing-orders/<int:order_id>", methods=["DELETE", "PATCH"])
+def delete_or_patch_standing_order(order_id):
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM standing_orders WHERE id = %s", (order_id,))
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    if request.method == "DELETE":
+        cur.execute("DELETE FROM standing_orders WHERE id = %s", (order_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"deleted": order_id})
+    data = request.get_json()
+    fields, values = [], []
+    if 'name'    in data: fields.append("name = %s");    values.append(data['name'])
+    if 'name_he' in data: fields.append("name_he = %s"); values.append(data['name_he'])
+    if not fields:
+        return jsonify({"error": "no fields"}), 400
+    values.append(order_id)
+    cur.execute(f"UPDATE standing_orders SET {', '.join(fields)} WHERE id = %s RETURNING *", values)
+    row = cur.fetchone()
     conn.commit()
     cur.close()
     conn.close()
-    return jsonify({"deleted": order_id})
+    if not row:
+        return jsonify({"error": "not found"}), 404
+    order = dict(row)
+    order['amount'] = float(order['amount'])
+    return jsonify(order)
+
+
+@app.route("/parse-receipt", methods=["POST"])
+def parse_receipt():
+    import anthropic as _anthropic
+    import json as _json
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured on server"}), 503
+
+    data      = request.get_json()
+    img_data  = data.get('image')
+    mime_type = data.get('media_type', 'image/jpeg')
+
+    if not img_data:
+        return jsonify({"error": "No image provided"}), 400
+
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": mime_type, "data": img_data}
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "Extract the key details from this receipt. "
+                            "Return ONLY valid JSON with no markdown, no explanation:\n"
+                            '{"name":"store or merchant name","amount":0.00,"date":"YYYY-MM-DD",'
+                            '"category":"groceries|housing|transport|food|clothing|health|subscriptions|entertainment|education|other"}\n'
+                            "amount = total amount paid. Use null for any field you cannot determine. "
+                            "For date, if year is missing assume current year."
+                        )
+                    }
+                ]
+            }]
+        )
+        raw = msg.content[0].text.strip()
+        print("Claude raw response:", raw, flush=True)
+        # Strip markdown code fences if Claude added them
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        result = _json.loads(raw)
+        return jsonify(result)
+    except _json.JSONDecodeError as e:
+        print("JSON decode error:", e, "raw:", locals().get('raw', ''), flush=True)
+        return jsonify({"error": "Could not parse receipt data"}), 422
+    except Exception as e:
+        print("parse-receipt error:", type(e).__name__, str(e), flush=True)
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
