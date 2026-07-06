@@ -4,3 +4,7 @@ __pycache__/
 .env
 *.tar
 finance-chart/values.yaml
+anthropic
+terraform/terraform.tfvars
+terraform/.terraform/
+terraform/terraform.tfstate*
