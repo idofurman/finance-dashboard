@@ -71,6 +71,8 @@ jobs:
             helm upgrade --install finance ~/finance-chart \
               --kubeconfig ~/.kube/config \
               --set backend.image.repository=$ECR/finance-backend \
-              --set backend.image.tag=latest \
-              --wait --timeout 120s
+              --set backend.image.tag=latest
+
+            # Wait for backend to be ready (up to 3 minutes)
+            sudo k3s kubectl rollout status deployment/backend --timeout=180s
           '
