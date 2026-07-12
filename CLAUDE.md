@@ -112,7 +112,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 
 ---
 
-### 🔄 Week 2 — Kubernetes + IaC + Frontend (IN PROGRESS)
+### ✅ Week 2 — Kubernetes + IaC + Frontend (COMPLETE)
 
 **Goal:** Deploy the app into a real Kubernetes cluster AND build a real usable frontend
 
@@ -130,7 +130,10 @@ A real family expense tracking app that Ido and his parents will actually use da
 11. ✅ Deploy everything with kubectl apply
 12. ✅ Install Helm
 13. ✅ Convert manifests into a Helm chart (`finance-chart/templates/`) — deployed via `helm install finance`
-14. ⏳ Build the real frontend (mobile-first, charts, add expense form)
+14. ✅ Build the real frontend (mobile-first, charts, add expense form)
+15. ✅ Terraform — ECR, EC2 (t3.small), budget alerts, IAM role
+16. ✅ Moved k3s to AWS EC2 (52.20.107.63) — real cloud deployment
+17. ✅ Receipt scanner — `/parse-receipt` endpoint using Claude Haiku vision API
 
 **Frontend to build:**
 - Mobile-first responsive design
@@ -151,17 +154,17 @@ A real family expense tracking app that Ido and his parents will actually use da
 
 ---
 
-### ⏳ Week 3 — CI/CD Pipeline (PENDING)
+### ✅ Week 3 — CI/CD Pipeline (COMPLETE)
 
 **Goal:** One `git push` triggers test → build → push to ECR → deploy to k3s
 
 **Steps:**
-1. Write basic pytest tests for the Flask API
-2. Create GitHub Actions workflow file
-3. Set up AWS ECR repository
-4. Configure GitHub secrets (AWS credentials)
-5. Pipeline stages: lint → test → docker build → ECR push → kubectl apply
-6. Add feature branch workflow (PR required for main)
+1. ✅ Write basic pytest tests for the Flask API
+2. ✅ Create GitHub Actions workflow file
+3. ✅ Set up AWS ECR repository
+4. ✅ Configure GitHub secrets (AWS credentials, EC2 SSH key)
+5. ✅ Pipeline stages: test → docker build → ECR push → deploy to EC2
+6. ✅ Branch protection on main (PR required, tests must pass)
 
 **Key concepts to teach:**
 - What CI and CD mean separately
@@ -172,7 +175,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 
 ---
 
-### ⏳ Week 4 — Monitoring + ArgoCD + Polish (PENDING)
+### 🔄 Week 4 — Monitoring + ArgoCD + Polish (IN PROGRESS / NEXT)
 
 **Goal:** Observability, GitOps deployment, and demo-ready project
 
@@ -293,11 +296,11 @@ __pycache__/
 |---|---|---|
 | Git repository | ✅ Done | github.com/idofurman/finance-dashboard |
 | Docker containers | ✅ Done | backend + db |
-| Kubernetes deployment | ✅ Done | k3s locally, both pods running |
-| Helm chart | ✅ Done | finance-chart/, deployed via helm install |
-| Terraform | 🔄 Week 2 | describe infra |
-| GitHub Actions CI/CD | ⏳ Week 3 | full pipeline |
-| AWS ECR | ⏳ Week 3 | image registry |
+| Kubernetes deployment | ✅ Done | k3s on EC2 t3.small (52.20.107.63) |
+| Helm chart | ✅ Done | finance-chart/, deployed via helm upgrade |
+| Terraform | ✅ Done | ECR, EC2 t3.small, IAM, budget alerts |
+| GitHub Actions CI/CD | ✅ Done | test → build → ECR push → deploy to EC2 |
+| AWS ECR | ✅ Done | 579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-backend |
 | ArgoCD | ⏳ Week 4 | GitOps |
 | Prometheus + Grafana | ⏳ Week 4 | monitoring |
 | Bash scripts | ⏳ Week 4 | health checks |
