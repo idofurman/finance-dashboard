@@ -61,20 +61,17 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 300s
           script: |
-            ECR_IMAGE="579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-backend:latest"
+            ECR="579083551085.dkr.ecr.us-east-1.amazonaws.com"
 
-            # Pull latest image from ECR into k3s (uses the EC2 IAM role for auth)
-            aws ecr get-login-password --region us-east-1 | \
-              sudo k3s ctr images pull \
-              --user "AWS:$(aws ecr get-login-password --region us-east-1)" \
-              $ECR_IMAGE
+            # Login to ECR and pull image into k3s containerd
+            TOKEN=$(aws ecr get-login-password --region us-east-1)
+            echo $TOKEN | sudo k3s ctr images pull --user "AWS:$TOKEN" $ECR/finance-backend:latest
 
-            # Deploy via Helm, overriding the image to use ECR
+            # Deploy or upgrade via Helm
             helm upgrade --install finance ~/finance-chart \
               --kubeconfig ~/.kube/config \
-              --set backend.image.repository=579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-backend \
-              --set backend.image.tag=latest
-
-            # Wait for rollout to complete
-            sudo k3s kubectl rollout status deployment/backend --timeout=120s
+              --set backend.image.repository=$ECR/finance-backend \
+              --set backend.image.tag=latest \
+              --wait --timeout 120s
