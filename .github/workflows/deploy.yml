@@ -49,3 +49,32 @@ jobs:
           docker push $ECR_REGISTRY/finance-backend:$IMAGE_TAG
           docker tag $ECR_REGISTRY/finance-backend:$IMAGE_TAG $ECR_REGISTRY/finance-backend:latest
           docker push $ECR_REGISTRY/finance-backend:latest
+
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            ECR_IMAGE="579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-backend:latest"
+
+            # Pull latest image from ECR into k3s (uses the EC2 IAM role for auth)
+            aws ecr get-login-password --region us-east-1 | \
+              sudo k3s ctr images pull \
+              --user "AWS:$(aws ecr get-login-password --region us-east-1)" \
+              $ECR_IMAGE
+
+            # Deploy via Helm, overriding the image to use ECR
+            helm upgrade --install finance ~/finance-chart \
+              --kubeconfig ~/.kube/config \
+              --set backend.image.repository=579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-backend \
+              --set backend.image.tag=latest
+
+            # Wait for rollout to complete
+            sudo k3s kubectl rollout status deployment/backend --timeout=120s
