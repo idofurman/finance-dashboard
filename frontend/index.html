@@ -265,7 +265,7 @@
 // ============================================================
 // CONFIGURATION
 // ============================================================
-const API_URL = 'http://52.20.107.63:30500';
+const API_URL = '';
 
 const CATEGORIES = [
     { key: 'groceries',     icon: '🛒', en: 'Groceries',     he: 'קניות'    },
@@ -438,7 +438,7 @@ const state = {
 // ============================================================
 function getToken()       { return localStorage.getItem('authToken'); }
 function getAuthHeaders() { return { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
-function logout()         { localStorage.removeItem('authToken'); window.location.href = 'login.html'; }
+function logout()         { localStorage.removeItem('authToken'); window.location.href = '/'; }
 
 async function loadUser() {
     const res = await fetch(`${API_URL}/auth/me`, { headers: getAuthHeaders() });
@@ -1554,7 +1554,7 @@ document.getElementById('submitInvite').addEventListener('click', handleSendInvi
 // ============================================================
 async function init() {
     if (!getToken()) {
-        window.location.href = 'login.html';
+        window.location.href = '/';
         return;
     }
 

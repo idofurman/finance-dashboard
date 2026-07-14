@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, g
+from flask import Flask, jsonify, request, g, send_from_directory
 from flask_cors import CORS
 from prometheus_flask_exporter import PrometheusMetrics
 import psycopg2
@@ -692,6 +692,25 @@ def parse_receipt():
         return jsonify({'error': 'Could not parse receipt data'}), 422
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================
+# FRONTEND — Flask serves the HTML files so family members
+# can open the app at the server URL without local files
+# ============================================================
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), 'frontend')
+
+@app.route('/')
+def serve_login():
+    return send_from_directory(FRONTEND_DIR, 'login.html')
+
+@app.route('/app')
+def serve_app():
+    return send_from_directory(FRONTEND_DIR, 'index.html')
+
+@app.route('/frontend/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
 
 
 # ============================================================

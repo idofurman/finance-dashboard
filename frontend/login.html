@@ -149,7 +149,7 @@
 </div>
 
 <script>
-const API_URL = 'http://52.20.107.63:30500';
+const API_URL = '';
 
 function showTab(tab) {
     document.getElementById('loginForm').style.display    = tab === 'login'    ? '' : 'none';
@@ -177,7 +177,7 @@ async function handleLogin() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
         localStorage.setItem('authToken', data.token);
-        window.location.href = 'index.html';
+        window.location.href = '/app';
     } catch (e) {
         errEl.textContent    = e.message;
         errEl.style.display  = 'block';
@@ -208,7 +208,7 @@ async function handleRegister() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');
         localStorage.setItem('authToken', data.token);
-        window.location.href = 'index.html';
+        window.location.href = '/app';
     } catch (e) {
         errEl.textContent   = e.message;
         errEl.style.display = 'block';
@@ -225,7 +225,7 @@ document.addEventListener('keydown', e => {
 });
 
 // If already logged in, go to app
-if (localStorage.getItem('authToken')) window.location.href = 'index.html';
+if (localStorage.getItem('authToken')) window.location.href = '/app';
 </script>
 </body>
 </html>

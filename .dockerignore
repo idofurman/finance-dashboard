@@ -1,0 +1,10 @@
+backend/venv
+backend/__pycache__
+backend/*.pyc
+terraform/
+k8s/
+.github/
+.git/
+*.md
+.env
+.env.example
