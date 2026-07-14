@@ -98,6 +98,7 @@ jobs:
       - name: Deploy to EC2 via SSH
         env:
           ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} bash << EOF
             TOKEN=\$(aws ecr get-login-password --region us-east-1)
@@ -110,7 +111,7 @@ jobs:
             helm upgrade --install finance ~/finance-chart \
               --kubeconfig ~/.kube/config \
               --set backend.image.repository=${ECR_REGISTRY}/finance-backend \
-              --set backend.image.tag=latest
+              --set backend.image.tag=${IMAGE_TAG}
 
             sudo k3s kubectl rollout status deployment/backend --timeout=180s
           EOF
