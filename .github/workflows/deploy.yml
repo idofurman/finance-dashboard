@@ -20,6 +20,8 @@ jobs:
         run: pip install -r backend/requirements.txt pytest
 
       - name: Run tests
+        env:
+          JWT_SECRET: test-secret-for-ci-only
         run: pytest backend/test_app.py -v
 
   build-and-push:
