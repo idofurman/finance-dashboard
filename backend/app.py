@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from prometheus_flask_exporter import PrometheusMetrics
 import psycopg2
 import psycopg2.extras
 import os
@@ -7,6 +8,7 @@ from datetime import date, timedelta
 
 app = Flask(__name__)
 CORS(app)
+PrometheusMetrics(app)
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
