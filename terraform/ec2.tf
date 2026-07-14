@@ -45,13 +45,6 @@ resource "aws_security_group" "finance_sg" {
     cidr_blocks = var.admin_cidr_blocks
   }
 
-  ingress {
-    description = "NodePort services"
-    from_port   = 30000
-    to_port     = 32767
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   egress {
     description = "Allow all outbound"
@@ -175,6 +168,6 @@ output "ssh_command" {
 }
 
 output "app_url" {
-  value       = "http://${aws_eip.finance_ip.public_ip}:30500"
+  value       = "https://allexpense.me"
   description = "URL to access the finance dashboard"
 }

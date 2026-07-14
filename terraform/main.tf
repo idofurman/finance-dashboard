@@ -21,11 +21,28 @@ provider "aws" {
 
 resource "aws_ecr_repository" "finance_backend" {
   name                 = "finance-backend"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
   }
+}
+
+resource "aws_ecr_lifecycle_policy" "finance_backend" {
+  repository = aws_ecr_repository.finance_backend.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images, delete older ones"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = { type = "expire" }
+    }]
+  })
 }
 
 provider "kubernetes" {
