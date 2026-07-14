@@ -26,9 +26,12 @@
                 <option value="USD">$ USD</option>
                 <option value="EUR">€ EUR</option>
             </select>
+            <select class="select-sm" id="poolContextSelect" title="Context"></select>
             <button class="btn-ghost" id="openYearlyModal">📅 Year</button>
             <button class="btn-ghost" id="openStandingModal">🔄 Standing Orders</button>
             <button class="btn-ghost" id="openBudgetModal">🎯 Budgets</button>
+            <button class="btn-ghost" id="openPoolsModal">👥 Pools</button>
+            <button class="btn-ghost btn-logout" id="logoutBtn">🚪</button>
         </div>
     </header>
 
@@ -198,6 +201,41 @@
             <button class="btn-close" onclick="closeModal('budgetModal')">✕</button>
         </div>
         <div class="modal-body" id="budgetForm"></div>
+    </div>
+</div>
+
+<!-- POOLS MODAL -->
+<div class="overlay" id="poolsModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>👥 Shared Pools</h3>
+            <button class="btn-close" onclick="closeModal('poolsModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <!-- Pending invitations -->
+            <div id="invitationsSection" style="display:none">
+                <p class="input-label">📬 Invitations</p>
+                <div id="invitationsList"></div>
+                <hr class="divider">
+            </div>
+            <!-- My pools -->
+            <p class="input-label">Your Pools</p>
+            <div id="poolsList"></div>
+            <hr class="divider">
+            <!-- Create pool -->
+            <p class="input-label">Create New Pool</p>
+            <input class="input" type="text" id="newPoolName" placeholder="Pool name (e.g. Family)">
+            <p class="modal-error" id="poolCreateError"></p>
+            <button class="btn-primary" id="submitCreatePool">Create</button>
+            <hr class="divider">
+            <!-- Invite to pool -->
+            <div id="inviteSection" style="display:none">
+                <p class="input-label">Invite Someone to <strong id="invitePoolName"></strong></p>
+                <input class="input" type="text" id="inviteUsernameInput" placeholder="Username or email">
+                <p class="modal-error" id="inviteError"></p>
+                <button class="btn-primary" id="submitInvite">Send Invite</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -388,7 +426,43 @@ const state = {
     yearlyViewYear:           new Date().getFullYear(),
     yearlyExpenses:           [],
     expenseInputCurrency:     'ILS',
+    user:                     null,
+    pools:                    [],
+    currentPool:              null,
+    invitations:              [],
+    selectedInvitePoolId:     null,
 };
+
+// ============================================================
+// AUTH
+// ============================================================
+function getToken()       { return localStorage.getItem('authToken'); }
+function getAuthHeaders() { return { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' }; }
+function logout()         { localStorage.removeItem('authToken'); window.location.href = 'login.html'; }
+
+async function loadUser() {
+    const res = await fetch(`${API_URL}/auth/me`, { headers: getAuthHeaders() });
+    if (res.status === 401) { logout(); return; }
+    const me = await res.json();
+    state.user        = me;
+    state.pools       = me.pools || [];
+    state.invitations = me.invitations || [];
+    renderWelcome();
+    renderPoolContextSwitcher();
+}
+
+function renderPoolContextSwitcher() {
+    const sel = document.getElementById('poolContextSelect');
+    sel.innerHTML = `<option value="">👤 Personal</option>`;
+    state.pools.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `👥 ${p.name}`;
+        if (state.currentPool && state.currentPool.id === p.id) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    sel.style.display = state.pools.length ? '' : 'none';
+}
 
 // ============================================================
 // HELPERS
@@ -396,7 +470,7 @@ const state = {
 function t(key) { return I18N[state.lang][key] || key; }
 
 function renderWelcome() {
-    const name = localStorage.getItem('userName') || '';
+    const name = state.user ? state.user.username : (localStorage.getItem('userName') || '');
     const el   = document.getElementById('headerWelcome');
     el.textContent = name ? `${t('welcome')}, ${name} 👋` : '';
 }
@@ -426,6 +500,8 @@ function resetTimePicker() {
 }
 
 function changeUserName() {
+    // With auth the username comes from the server — no local prompt needed
+    if (state.user) return;
     const current = localStorage.getItem('userName') || '';
     const name    = prompt(t('enterName'), current);
     if (name !== null && name.trim()) {
@@ -451,62 +527,189 @@ function monthLabel() {
 // ============================================================
 // API
 // ============================================================
+function poolParam(prefix = '?') {
+    return state.currentPool ? `${prefix}pool_id=${state.currentPool.id}` : '';
+}
+
 async function fetchExpenses() {
-    const url = state.specificDate
-        ? `${API_URL}/expenses?date=${state.specificDate}`
-        : `${API_URL}/expenses?month=${state.currentMonth}&filter=${state.filter}`;
-    const res = await fetch(url);
+    let url;
+    const poolQ = poolParam('&');
+    if (state.specificDate) {
+        url = `${API_URL}/expenses?date=${state.specificDate}${poolQ}`;
+    } else {
+        url = `${API_URL}/expenses?month=${state.currentMonth}&filter=${state.filter}${poolQ}`;
+    }
+    const res = await fetch(url, { headers: getAuthHeaders() });
     state.expenses = await res.json();
 }
 
 async function addExpense(data) {
+    if (state.currentPool) data.pool_id = state.currentPool.id;
     await fetch(`${API_URL}/expenses`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data),
     });
 }
 
-async function deleteExpense(id) { await fetch(`${API_URL}/expenses/${id}`, { method: 'DELETE' }); }
+async function deleteExpense(id) {
+    await fetch(`${API_URL}/expenses/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+}
 
 async function fetchBudgets() {
-    const res = await fetch(`${API_URL}/budgets?month=${state.currentMonth}`);
+    const res = await fetch(`${API_URL}/budgets?month=${state.currentMonth}${poolParam('&')}`, { headers: getAuthHeaders() });
     state.budgets = await res.json();
 }
 
 async function saveBudget(category, limit) {
+    const body = { category, month: state.currentMonth, limit_amount: limit };
+    if (state.currentPool) body.pool_id = state.currentPool.id;
     await fetch(`${API_URL}/budgets`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category, month: state.currentMonth, limit_amount: limit }),
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body),
     });
 }
 
 async function fetchStandingOrders() {
-    const res = await fetch(`${API_URL}/standing-orders`);
+    const res = await fetch(`${API_URL}/standing-orders`, { headers: getAuthHeaders() });
     state.standingOrders = await res.json();
 }
 
 async function addStandingOrder(data) {
     await fetch(`${API_URL}/standing-orders`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(data),
     });
 }
 
-async function deleteStandingOrder(id) { await fetch(`${API_URL}/standing-orders/${id}`, { method: 'DELETE' }); }
+async function deleteStandingOrder(id) {
+    await fetch(`${API_URL}/standing-orders/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+}
 
 async function fetchYearlyExpenses(year) {
-    const res = await fetch(`${API_URL}/expenses?year=${year}`);
+    const res = await fetch(`${API_URL}/expenses?year=${year}${poolParam('&')}`, { headers: getAuthHeaders() });
     state.yearlyExpenses = await res.json();
 }
 
 async function patchExpense(id, data) {
     await fetch(`${API_URL}/expenses/${id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+        method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(data),
     });
 }
 
 async function patchStandingOrder(id, data) {
     await fetch(`${API_URL}/standing-orders/${id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+        method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(data),
     });
+}
+
+// ============================================================
+// POOL MANAGEMENT
+// ============================================================
+async function openPoolsModal() {
+    await loadUser();
+    renderPoolsModal();
+    openModal('poolsModal');
+}
+
+function renderPoolsModal() {
+    // Invitations
+    const invSec  = document.getElementById('invitationsSection');
+    const invList = document.getElementById('invitationsList');
+    if (state.invitations.length > 0) {
+        invSec.style.display = 'block';
+        invList.innerHTML = '';
+        state.invitations.forEach(inv => {
+            const row = document.createElement('div');
+            row.className = 'expense-item';
+            row.innerHTML = `
+                <div class="expense-details">
+                    <span class="expense-name">${inv.pool_name}</span>
+                    <span class="expense-meta">invited by ${inv.invited_by_username}</span>
+                </div>
+                <div class="expense-right" style="gap:6px">
+                    <button class="btn-sm" onclick="handleAcceptInvite(${inv.pool_id})">✓ Join</button>
+                    <button class="btn-delete" onclick="handleDeclineInvite(${inv.pool_id})">✕</button>
+                </div>
+            `;
+            invList.appendChild(row);
+        });
+    } else {
+        invSec.style.display = 'none';
+    }
+
+    // Pool list
+    const poolsList = document.getElementById('poolsList');
+    poolsList.innerHTML = '';
+    if (state.pools.length === 0) {
+        poolsList.innerHTML = '<p class="empty-text">No pools yet. Create one below!</p>';
+    } else {
+        state.pools.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'expense-item';
+            row.innerHTML = `
+                <div class="expense-details">
+                    <span class="expense-name">👥 ${p.name}</span>
+                    <span class="expense-meta">${p.role}</span>
+                </div>
+                <div class="expense-right">
+                    <button class="btn-sm" onclick="openInviteSection(${p.id}, '${p.name.replace(/'/g,"\\'")}')">+ Invite</button>
+                </div>
+            `;
+            poolsList.appendChild(row);
+        });
+    }
+
+    // Reset invite section
+    document.getElementById('inviteSection').style.display = 'none';
+    document.getElementById('poolCreateError').style.display = 'none';
+    document.getElementById('newPoolName').value = '';
+}
+
+function openInviteSection(poolId, poolName) {
+    state.selectedInvitePoolId = poolId;
+    document.getElementById('invitePoolName').textContent = poolName;
+    document.getElementById('inviteUsernameInput').value  = '';
+    document.getElementById('inviteError').style.display = 'none';
+    document.getElementById('inviteSection').style.display = 'block';
+}
+
+async function handleCreatePool() {
+    const name    = document.getElementById('newPoolName').value.trim();
+    const errEl   = document.getElementById('poolCreateError');
+    if (!name) { errEl.textContent = 'Pool name is required'; errEl.style.display = 'block'; return; }
+    const res = await fetch(`${API_URL}/pools`, {
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    await loadUser();
+    renderPoolsModal();
+    renderPoolContextSwitcher();
+}
+
+async function handleSendInvite() {
+    const val   = document.getElementById('inviteUsernameInput').value.trim();
+    const errEl = document.getElementById('inviteError');
+    if (!val) { errEl.textContent = 'Enter a username or email'; errEl.style.display = 'block'; return; }
+    const res = await fetch(`${API_URL}/pools/${state.selectedInvitePoolId}/invite`, {
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ username_or_email: val }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    errEl.style.display = 'none';
+    document.getElementById('inviteUsernameInput').value = '';
+    document.getElementById('inviteSection').style.display = 'none';
+    alert(`✅ ${data.message}`);
+}
+
+async function handleAcceptInvite(poolId) {
+    await fetch(`${API_URL}/pools/${poolId}/accept`, { method: 'POST', headers: getAuthHeaders() });
+    await loadUser();
+    renderPoolsModal();
+    renderPoolContextSwitcher();
+}
+
+async function handleDeclineInvite(poolId) {
+    await fetch(`${API_URL}/pools/${poolId}/decline`, { method: 'DELETE', headers: getAuthHeaders() });
+    await loadUser();
+    renderPoolsModal();
 }
 
 function enforceInputLang(inputId, warnId) {
@@ -1288,7 +1491,7 @@ document.getElementById('receiptFileInput').addEventListener('change', async e =
 
         const resp = await fetch(`${API_URL}/parse-receipt`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ image: b64, media_type: file.type || 'image/jpeg' })
         });
         const data = await resp.json();
@@ -1327,9 +1530,34 @@ document.getElementById('standingNameHe').addEventListener('input', () => enforc
 
 
 // ============================================================
+// POOL CONTEXT SWITCH
+// ============================================================
+document.getElementById('poolContextSelect').addEventListener('change', async e => {
+    const poolId = e.target.value;
+    state.currentPool = poolId ? state.pools.find(p => String(p.id) === poolId) || null : null;
+    state.filter = 'month';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    const fm = document.getElementById('filterMonth');
+    if (fm) fm.classList.add('active');
+    await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
+    renderAll();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', logout);
+
+document.getElementById('openPoolsModal').addEventListener('click', openPoolsModal);
+document.getElementById('submitCreatePool').addEventListener('click', handleCreatePool);
+document.getElementById('submitInvite').addEventListener('click', handleSendInvite);
+
+// ============================================================
 // INIT
 // ============================================================
 async function init() {
+    if (!getToken()) {
+        window.location.href = 'login.html';
+        return;
+    }
+
     const now = new Date();
     const maxMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const picker = document.getElementById('monthPicker');
@@ -1340,16 +1568,17 @@ async function init() {
     renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
     renderCategoryFilter();
     updateLanguage();
-    if (!localStorage.getItem('userName')) changeUserName();
     updateClock();
     setInterval(updateClock, 1000);
 
     try {
+        await loadUser();
         await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
         renderAll();
         ensureTranslations();
     } catch (e) {
         console.error('Failed to load data from API:', e);
+        if (e.message && e.message.includes('401')) logout();
     }
 }
 

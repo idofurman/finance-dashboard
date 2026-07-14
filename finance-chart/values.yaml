@@ -7,10 +7,6 @@ backend:
 
 db:
   image: postgres:16
-  storage: 1Gi
-  credentials:
-    user: admin 
-    password: secret
-    database: finance     
+  storage: 1Gi     
 
   

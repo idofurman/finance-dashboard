@@ -20,13 +20,29 @@ spec:
               mountPath: /var/lib/postgresql/data
           ports:    
             - containerPort: 5432
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
           env:
             - name: POSTGRES_USER
-              value: {{ .Values.db.credentials.user }}
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: db-user
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.db.credentials.password }}
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: db-password
             - name: POSTGRES_DB
-              value: {{ .Values.db.credentials.database }}
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: db-name
 
       volumes:
         - name: db-storage

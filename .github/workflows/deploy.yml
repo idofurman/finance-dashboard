@@ -93,23 +93,21 @@ jobs:
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -r ./finance-chart ubuntu@${{ secrets.EC2_HOST }}:~/
 
       - name: Deploy to EC2 via SSH
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} '
-            ECR="579083551085.dkr.ecr.us-east-1.amazonaws.com"
-
-            # Refresh ECR credentials so k3s can pull images
-            TOKEN=$(aws ecr get-login-password --region us-east-1)
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} bash << EOF
+            TOKEN=\$(aws ecr get-login-password --region us-east-1)
             sudo k3s kubectl create secret docker-registry ecr-credentials \
-              --docker-server=$ECR \
+              --docker-server=${ECR_REGISTRY} \
               --docker-username=AWS \
-              --docker-password=$TOKEN \
+              --docker-password=\$TOKEN \
               --dry-run=client -o yaml | sudo k3s kubectl apply -f -
 
             helm upgrade --install finance ~/finance-chart \
               --kubeconfig ~/.kube/config \
-              --set backend.image.repository=$ECR/finance-backend \
+              --set backend.image.repository=${ECR_REGISTRY}/finance-backend \
               --set backend.image.tag=latest
 
-            # Wait for backend to be ready (up to 3 minutes)
             sudo k3s kubectl rollout status deployment/backend --timeout=180s
-          '
+          EOF

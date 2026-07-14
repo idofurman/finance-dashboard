@@ -14,11 +14,11 @@ resource "aws_security_group" "finance_sg" {
   description = "Finance dashboard k3s server"
 
   ingress {
-    description = "SSH"
+    description = "SSH — restrict to your own IP"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.admin_cidr_blocks
   }
 
   ingress {
@@ -38,11 +38,11 @@ resource "aws_security_group" "finance_sg" {
   }
 
   ingress {
-    description = "k3s API server"
+    description = "k3s API server — restrict to your own IP"
     from_port   = 6443
     to_port     = 6443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.admin_cidr_blocks
   }
 
   ingress {

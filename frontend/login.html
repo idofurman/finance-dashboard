@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>AllExpense — Sign In</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+        }
+
+        .logo { font-size: 2rem; text-align: center; margin-bottom: 4px; }
+        .app-name { font-size: 1.5rem; font-weight: 700; text-align: center; color: #1e1b4b; margin-bottom: 4px; }
+        .tagline { font-size: 0.85rem; color: #6b7280; text-align: center; margin-bottom: 28px; }
+
+        .tabs {
+            display: flex;
+            background: #f3f4f6;
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+        .tab {
+            flex: 1;
+            padding: 9px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: #fff;
+            color: #4338ca;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+        }
+
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 5px; margin-top: 14px; }
+        input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            color: #111827;
+        }
+        input:focus { border-color: #4338ca; box-shadow: 0 0 0 3px rgba(67,56,202,0.12); }
+
+        .btn {
+            width: 100%;
+            margin-top: 22px;
+            padding: 13px;
+            background: linear-gradient(135deg, #4338ca, #6d28d9);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .btn:hover  { opacity: 0.92; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            margin-top: 14px;
+            display: none;
+        }
+        .success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            margin-top: 14px;
+            display: none;
+        }
+
+        #registerForm { display: none; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="logo">💰</div>
+    <div class="app-name">AllExpense</div>
+    <div class="tagline">Your family finance tracker</div>
+
+    <div class="tabs">
+        <button class="tab active" id="tabLogin"    onclick="showTab('login')">Sign In</button>
+        <button class="tab"        id="tabRegister" onclick="showTab('register')">Create Account</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginForm">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+        <div class="error"   id="loginError"></div>
+        <button class="btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="registerForm">
+        <label for="regUsername">Username</label>
+        <input type="text" id="regUsername" placeholder="ido123" autocomplete="username">
+        <label for="regEmail">Email</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+        <label for="regPassword">Password</label>
+        <input type="password" id="regPassword" placeholder="Min 6 characters" autocomplete="new-password">
+        <div class="error"   id="registerError"></div>
+        <div class="success" id="registerSuccess"></div>
+        <button class="btn" id="registerBtn" onclick="handleRegister()">Create Account</button>
+    </div>
+</div>
+
+<script>
+const API_URL = 'http://52.20.107.63:30500';
+
+function showTab(tab) {
+    document.getElementById('loginForm').style.display    = tab === 'login'    ? '' : 'none';
+    document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
+    document.getElementById('tabLogin').classList.toggle('active',    tab === 'login');
+    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+}
+
+async function handleLogin() {
+    const email    = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl    = document.getElementById('loginError');
+    const btn      = document.getElementById('loginBtn');
+
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    try {
+        const res  = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+        localStorage.setItem('authToken', data.token);
+        window.location.href = 'index.html';
+    } catch (e) {
+        errEl.textContent    = e.message;
+        errEl.style.display  = 'block';
+        btn.disabled         = false;
+        btn.textContent      = 'Sign In';
+    }
+}
+
+async function handleRegister() {
+    const username = document.getElementById('regUsername').value.trim();
+    const email    = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const errEl    = document.getElementById('registerError');
+    const okEl     = document.getElementById('registerSuccess');
+    const btn      = document.getElementById('registerBtn');
+
+    errEl.style.display = 'none';
+    okEl.style.display  = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
+
+    try {
+        const res  = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+        localStorage.setItem('authToken', data.token);
+        window.location.href = 'index.html';
+    } catch (e) {
+        errEl.textContent   = e.message;
+        errEl.style.display = 'block';
+        btn.disabled        = false;
+        btn.textContent     = 'Create Account';
+    }
+}
+
+// Allow Enter key to submit
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const loginVisible = document.getElementById('loginForm').style.display !== 'none';
+    if (loginVisible) handleLogin(); else handleRegister();
+});
+
+// If already logged in, go to app
+if (localStorage.getItem('authToken')) window.location.href = 'index.html';
+</script>
+</body>
+</html>

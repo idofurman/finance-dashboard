@@ -1,6 +1,6 @@
 apiVersion: apps/v1
-kind: Deployment 
-metadata: 
+kind: Deployment
+metadata:
   name: db
 spec:
   replicas: 1
@@ -18,18 +18,26 @@ spec:
           volumeMounts:
             - name: db-storage
               mountPath: /var/lib/postgresql/data
-          ports:    
+          ports:
             - containerPort: 5432
           env:
             - name: POSTGRES_USER
-              value: admin
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: db-user
             - name: POSTGRES_PASSWORD
-              value: secret
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: db-password
             - name: POSTGRES_DB
-              value: finance
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: db-name
 
       volumes:
         - name: db-storage
           persistentVolumeClaim:
             claimName: db-pvc
-

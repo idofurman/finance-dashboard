@@ -1,16 +1,17 @@
-services: 
+services:
   backend:
     build: ./backend
     ports:
-      - "5000:5000"  
+      - "5000:5000"
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgresql://admin:secret@db:5432/finance     
-      
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: secret
-      POSTGRES_DB: finance      
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}

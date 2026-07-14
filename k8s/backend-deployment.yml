@@ -6,11 +6,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: backend  
-    
+      app: backend
+
   template:
     metadata:
-      labels:    
+      labels:
         app: backend
     spec:
       containers:
@@ -21,4 +21,12 @@ spec:
             - containerPort: 5000
           env:
             - name: DATABASE_URL
-              value:  postgresql://admin:secret@db:5432/finance  
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: database-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: finance-secrets
+                  key: jwt-secret
