@@ -69,7 +69,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/finance-backend:latest
           format: table
