@@ -1,7 +1,7 @@
 resource "aws_budgets_budget" "monthly_limit" {
   name         = "finance-dashboard-monthly"
   budget_type  = "COST"
-  limit_amount = "50"
+  limit_amount = "10"
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
