@@ -46,4 +46,4 @@ spec:
                   name: finance-secrets
                   key: jwt-secret
             - name: ALLOWED_ORIGINS
-              value: "*"
+              value: "https://allexpense.me,https://www.allexpense.me"
