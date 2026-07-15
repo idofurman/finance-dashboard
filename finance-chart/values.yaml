@@ -1,6 +1,6 @@
 backend:
   image:
-    repository: finance-backend
+    repository: 579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-backend
     tag: latest
   port: 5000
   nodePort: 30500

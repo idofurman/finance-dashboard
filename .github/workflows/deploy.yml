@@ -111,10 +111,12 @@ jobs:
               --docker-password=\$TOKEN \
               --dry-run=client -o yaml | sudo k3s kubectl apply -f -
 
-            helm upgrade --install finance ~/finance-chart \
-              --kubeconfig ~/.kube/config \
-              --set backend.image.repository=\${ECR_REGISTRY}/finance-backend \
-              --set backend.image.tag=${IMAGE_TAG}
+            # Tell ArgoCD which image tag to use — ArgoCD owns the deployment
+            sudo k3s kubectl patch application finance-dashboard -n argocd \
+              --type merge \
+              -p "{\"spec\":{\"source\":{\"helm\":{\"parameters\":[{\"name\":\"backend.image.repository\",\"value\":\"\${ECR_REGISTRY}/finance-backend\"},{\"name\":\"backend.image.tag\",\"value\":\"${IMAGE_TAG}\"}]}}}}"
 
+            # Wait for ArgoCD to sync and rollout to complete
+            sleep 15
             sudo k3s kubectl rollout status deployment/backend --timeout=180s
           EOF
