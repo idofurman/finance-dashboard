@@ -1051,7 +1051,7 @@ body {
     /* Expense items: compact for narrow column */
     .expense-item   { gap: 8px; padding: 10px 4px; }
     .expense-icon   { width: 28px; height: 28px; font-size: 1rem; }
-    .expense-name   { font-size: 0.78rem; }
+    .expense-name   { font-size: 0.78rem; white-space: normal; word-break: break-word; }
     .expense-meta   { font-size: 0.66rem; }
     .expense-amount { font-size: 0.78rem; }
 
