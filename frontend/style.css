@@ -729,6 +729,12 @@ body {
     gap: 12px;
 }
 
+.modal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 /* ============================================================
    CATEGORY SELECT (modal)
    ============================================================ */
