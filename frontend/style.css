@@ -1372,7 +1372,7 @@ body {
     height: 700px;
     top: -250px;
     right: -200px;
-    background: radial-gradient(circle, rgba(79, 70, 229, 0.11) 0%, rgba(79, 70, 229, 0) 70%);
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.18) 0%, rgba(79, 70, 229, 0) 70%);
 }
 
 .bg-shape-2 {
@@ -1380,7 +1380,7 @@ body {
     height: 560px;
     bottom: -160px;
     left: -160px;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.10) 0%, rgba(99, 102, 241, 0) 70%);
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, rgba(99, 102, 241, 0) 70%);
 }
 
 .bg-shape-3 {
@@ -1388,7 +1388,7 @@ body {
     height: 300px;
     top: 90px;
     left: 40px;
-    background: rgba(129, 140, 248, 0.08);
+    background: rgba(129, 140, 248, 0.13);
 }
 
 .bg-shape-4 {
@@ -1396,7 +1396,7 @@ body {
     height: 200px;
     top: 35%;
     right: 4%;
-    background: rgba(79, 70, 229, 0.08);
+    background: rgba(79, 70, 229, 0.13);
 }
 
 .bg-shape-5 {
@@ -1404,7 +1404,7 @@ body {
     height: 110px;
     bottom: 15%;
     left: 40%;
-    background: rgba(99, 102, 241, 0.09);
+    background: rgba(99, 102, 241, 0.15);
 }
 
 .bg-shape-6 {
@@ -1412,17 +1412,17 @@ body {
     height: 400px;
     top: 50%;
     right: 15%;
-    background: radial-gradient(circle, rgba(167, 139, 250, 0.08) 0%, rgba(167, 139, 250, 0) 70%);
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.14) 0%, rgba(167, 139, 250, 0) 70%);
 }
 
-/* --- Rings (outline only) --- */
+/* --- Rings (solid outline) --- */
 .bg-shape-7 {
     width: 440px;
     height: 440px;
     top: 60px;
     left: -80px;
     background: transparent;
-    border: 2px solid rgba(79, 70, 229, 0.09);
+    border: 2px solid rgba(79, 70, 229, 0.14);
 }
 
 .bg-shape-8 {
@@ -1431,7 +1431,7 @@ body {
     top: 45%;
     left: 30%;
     background: transparent;
-    border: 1.5px solid rgba(99, 102, 241, 0.10);
+    border: 1.5px solid rgba(99, 102, 241, 0.16);
 }
 
 .bg-shape-9 {
@@ -1440,7 +1440,7 @@ body {
     bottom: 10%;
     right: 8%;
     background: transparent;
-    border: 2px solid rgba(129, 140, 248, 0.11);
+    border: 2px solid rgba(129, 140, 248, 0.17);
 }
 
 .bg-shape-10 {
@@ -1449,7 +1449,7 @@ body {
     top: 20%;
     right: 18%;
     background: transparent;
-    border: 1.5px solid rgba(79, 70, 229, 0.09);
+    border: 1.5px solid rgba(79, 70, 229, 0.14);
 }
 
 /* --- Small accents --- */
@@ -1458,7 +1458,7 @@ body {
     height: 70px;
     top: 14%;
     left: 50%;
-    background: rgba(129, 140, 248, 0.11);
+    background: rgba(129, 140, 248, 0.17);
 }
 
 .bg-shape-12 {
@@ -1466,5 +1466,33 @@ body {
     height: 220px;
     top: 62%;
     left: 5%;
-    background: rgba(167, 139, 250, 0.07);
+    background: rgba(167, 139, 250, 0.13);
+}
+
+/* --- Dashed rings (new type) --- */
+.bg-shape-13 {
+    width: 320px;
+    height: 320px;
+    top: 28%;
+    left: 18%;
+    background: transparent;
+    border: 2px dashed rgba(79, 70, 229, 0.13);
+}
+
+.bg-shape-14 {
+    width: 180px;
+    height: 180px;
+    bottom: 22%;
+    right: 25%;
+    background: transparent;
+    border: 2px dashed rgba(129, 140, 248, 0.15);
+}
+
+.bg-shape-15 {
+    width: 100px;
+    height: 100px;
+    top: 8%;
+    right: 35%;
+    background: transparent;
+    border: 1.5px dashed rgba(99, 102, 241, 0.14);
 }
