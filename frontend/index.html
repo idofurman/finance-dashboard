@@ -1771,8 +1771,7 @@ async function init() {
 
     try {
         await loadUser();
-        fetchExchangeRates(); // fire-and-forget — doesn't block app load
-        await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
+        await Promise.all([fetchExchangeRates(), fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
         renderAll();
         ensureTranslations();
     } catch (e) {
