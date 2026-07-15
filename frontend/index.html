@@ -46,11 +46,6 @@
     <!-- Stats Row -->
     <div class="stats-row">
         <div class="stat-card">
-            <div class="stat-icon">💸</div>
-            <div class="stat-label" id="labelStatTotal">Total Spent</div>
-            <div class="stat-value" id="statTotal">₪0</div>
-        </div>
-        <div class="stat-card">
             <div class="stat-icon">🧾</div>
             <div class="stat-label" id="labelStatCount">Transactions</div>
             <div class="stat-value" id="statCount">0</div>
@@ -59,11 +54,6 @@
             <div class="stat-icon">📊</div>
             <div class="stat-label" id="labelStatAvg">Daily Average</div>
             <div class="stat-value" id="statAvg">₪0</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🏆</div>
-            <div class="stat-label" id="labelStatTop">Top Category</div>
-            <div class="stat-value stat-value-sm" id="statTopCat">—</div>
         </div>
     </div>
 
@@ -370,6 +360,8 @@ const I18N = {
         yearlyNoData:            'No expenses recorded for this year',
         months:                  'months',
         monthNames:          ['January','February','March','April','May','June','July','August','September','October','November','December'],
+        labelStatCount:      'Transactions',
+        labelStatAvg:        'Daily Average',
     },
     he: {
         appTitle:            '💰 AllExpense',
@@ -427,6 +419,8 @@ const I18N = {
         yearlyNoData:            'אין הוצאות לשנה זו',
         months:                  'חודשים',
         monthNames:          ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'],
+        labelStatCount:      'עסקאות',
+        labelStatAvg:        'ממוצע יומי',
     }
 };
 
@@ -1171,7 +1165,8 @@ function updateLanguage() {
     document.documentElement.setAttribute('dir', dir);
     ['appTitle','labelTotal','labelBudgets','labelExpenses','labelStanding',
      'labelAddExpense','labelManageBudgets','labelManageStanding',
-     'labelCategory','labelName','labelAmount','labelDate','labelAddStanding'].forEach(k => {
+     'labelCategory','labelName','labelAmount','labelDate','labelAddStanding',
+     'labelStatCount','labelStatAvg'].forEach(k => {
         const el = document.getElementById(k);
         if (el) el.textContent = t(k);
     });
@@ -1213,17 +1208,8 @@ function updateStats() {
     const daysInMonth = new Date(state.currentMonth.slice(0,4), state.currentMonth.slice(5,7), 0).getDate();
     const avg = total / daysInMonth;
 
-    const byCategory = {};
-    expenses.forEach(e => {
-        byCategory[e.category] = (byCategory[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency);
-    });
-    const topCat = Object.entries(byCategory).sort((a,b) => b[1]-a[1])[0];
-    const topCatDisplay = topCat ? `${getCat(topCat[0]).icon} ${catName(topCat[0])}` : '—';
-
-    document.getElementById('statTotal').textContent   = fmt(total);
-    document.getElementById('statCount').textContent   = count;
-    document.getElementById('statAvg').textContent     = count > 0 ? fmt(avg) : fmt(0);
-    document.getElementById('statTopCat').textContent  = topCatDisplay;
+    document.getElementById('statCount').textContent = count;
+    document.getElementById('statAvg').textContent   = count > 0 ? fmt(avg) : fmt(0);
 }
 
 function renderAll() {
