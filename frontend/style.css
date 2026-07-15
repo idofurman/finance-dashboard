@@ -220,6 +220,18 @@ body {
     line-height: 1.1;
 }
 
+.daily-avg-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.9);
+    border-radius: 20px;
+    padding: 3px 10px;
+}
+
 .standing-note {
     font-size: 0.75rem;
     opacity: 0.65;
