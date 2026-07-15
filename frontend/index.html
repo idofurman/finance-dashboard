@@ -30,6 +30,12 @@
     <div class="bg-shape bg-shape-17"></div>
     <div class="bg-shape bg-shape-18"></div>
     <div class="bg-shape bg-shape-19"></div>
+    <div class="bg-shape bg-shape-20"></div>
+    <div class="bg-shape bg-shape-21"></div>
+    <div class="bg-shape bg-shape-22"></div>
+    <div class="bg-shape bg-shape-23"></div>
+    <div class="bg-shape bg-shape-24"></div>
+    <div class="bg-shape bg-shape-25"></div>
 </div>
 <div class="app">
 
@@ -334,6 +340,11 @@ const I18N = {
         sortBtn:             '↕ Sort by Category',
         unsortBtn:           '↕ Unsort',
         noExpenses:          'No expenses yet',
+        noExpensesSub:       'Tap + to add your first expense',
+        noBudgets:           'No budgets set',
+        noBudgetsSub:        'Set monthly limits to track your spending',
+        setBudgetBtn:        '+ Set a Budget',
+        noPools:             'No pools yet. Create one below!',
         deleteCfm:           'Delete this expense?',
         save:                'Save',
         standingNote:        '+ standing orders',
@@ -392,6 +403,11 @@ const I18N = {
         sortBtn:             '↕ מיין לפי קטגוריה',
         unsortBtn:           '↕ בטל מיון',
         noExpenses:          'אין הוצאות עדיין',
+        noExpensesSub:       'לחץ + להוספת ההוצאה הראשונה',
+        noBudgets:           'לא הוגדרו תקציבים',
+        noBudgetsSub:        'הגדר מגבלות חודשיות למעקב אחר ההוצאות',
+        setBudgetBtn:        '+ הגדר תקציב',
+        noPools:             'אין קבוצות עדיין. צור אחת למטה!',
         deleteCfm:           'למחוק הוצאה זו?',
         save:                'שמור',
         standingNote:        '+ הוראות קבע',
@@ -664,7 +680,7 @@ function renderPoolsModal() {
     const poolsList = document.getElementById('poolsList');
     poolsList.innerHTML = '';
     if (state.pools.length === 0) {
-        poolsList.innerHTML = '<p class="empty-text">No pools yet. Create one below!</p>';
+        poolsList.innerHTML = `<p class="empty-text">${t('noPools')}</p>`;
     } else {
         state.pools.forEach(p => {
             const row = document.createElement('div');
@@ -901,9 +917,9 @@ function renderBudgetBars() {
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">🎯</div>
-                <p class="empty-state-title">No budgets set</p>
-                <p class="empty-state-sub">Set monthly limits to track your spending</p>
-                <button class="btn-empty-action" onclick="document.getElementById('openBudgetModal').click()">+ Set a Budget</button>
+                <p class="empty-state-title">${t('noBudgets')}</p>
+                <p class="empty-state-sub">${t('noBudgetsSub')}</p>
+                <button class="btn-empty-action" onclick="document.getElementById('openBudgetModal').click()">${t('setBudgetBtn')}</button>
             </div>`;
         return;
     }
@@ -963,7 +979,7 @@ function renderExpenseList() {
             <div class="empty-state">
                 <div class="empty-state-icon">🧾</div>
                 <p class="empty-state-title">${t('noExpenses')}</p>
-                <p class="empty-state-sub">Tap <strong>+</strong> to add your first expense</p>
+                <p class="empty-state-sub">${t('noExpensesSub')}</p>
             </div>`;
         return;
     }
