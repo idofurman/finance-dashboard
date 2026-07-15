@@ -918,38 +918,34 @@ body {
    ============================================================ */
 @media (max-width: 768px) {
 
-    /* Header: stack into two rows */
+    /* Prevent any element from causing horizontal scroll */
+    .app { overflow-x: hidden; }
+
+    /* ── HEADER ── */
+    /* Single column so header-actions can never push past viewport width */
     .header {
-        grid-template-columns: 1fr auto;
+        grid-template-columns: 1fr;
         grid-template-rows: auto auto;
         height: auto;
         padding: 10px 16px 0;
         gap: 0;
     }
 
-    .header-left {
-        grid-column: 1;
-        grid-row: 1;
-    }
-
-    /* Hide clock on mobile — saves header space */
+    .header-left  { grid-column: 1; grid-row: 1; }
     .header-center { display: none; }
 
-    /* Actions wrap below title as a scrollable strip */
     .header-actions {
-        grid-column: 1 / -1;
+        grid-column: 1;
         grid-row: 2;
-        justify-self: stretch;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         padding: 8px 0 10px;
         gap: 6px;
-        /* Hide scrollbar but keep scrollability */
         scrollbar-width: none;
+        min-width: 0;
     }
     .header-actions::-webkit-scrollbar { display: none; }
 
-    /* Slightly smaller action buttons so more fit */
     .header-actions .btn-ghost,
     .header-actions .select-sm {
         font-size: 0.75rem;
@@ -958,71 +954,122 @@ body {
         flex-shrink: 0;
     }
 
-    /* Month bar: tighter on mobile */
-    .month-bar {
-        top: 100px;
-        padding: 10px 16px;
-        gap: 12px;
-    }
-
+    /* ── MONTH BAR ── */
+    .month-bar { top: 100px; padding: 10px 16px; gap: 12px; }
     .month-bar-label { display: none; }
-
     .month-display-label { font-size: 0.95rem; }
 
-    /* Main grid: single column, left col first then right */
+    /* ── MAIN LAYOUT ──
+       Two columns at the top: [Summary card] [Expenses]
+       Then Budgets and Standing Orders full-width below.
+
+       How it works:
+       - .col-left gets display:contents — its 3 children (summary-card,
+         budgetSection, standingSection) pop out and join the parent grid directly.
+       - .col-right stays as a flex column container so filter-bar stacks
+         naturally above the expense list, and we place it in col 2 row 1.
+    */
     .content-grid {
-        grid-template-columns: 1fr;
-        padding: 16px;
-        gap: 16px;
+        grid-template-columns: 1fr 1fr;
+        padding: 12px;
+        gap: 12px;
+        align-items: start;
     }
 
-    /* Summary card: stack chart below text instead of side by side */
+    .col-left { display: contents; }
+
+    .col-right {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    /* Summary card — col 1, row 1 */
     .summary-card {
+        grid-column: 1;
+        grid-row: 1;
         flex-direction: column;
         align-items: flex-start;
-        gap: 16px;
-        padding: 20px 18px;
+        padding: 14px 12px;
+        gap: 10px;
+        min-width: 0;
+        overflow: hidden;
     }
 
-    .summary-right {
-        align-self: center;
+    .total-amount { font-size: 1.6rem; }
+
+    .summary-right { align-self: center; width: 72px; height: 72px; }
+    #categoryChart { width: 72px !important; height: 72px !important; }
+
+    /* Budgets — full width, row 2 */
+    #budgetSection {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        min-width: 0;
+        overflow: hidden;
     }
 
-    .total-amount { font-size: 2rem; }
+    /* Standing orders — full width, row 3 */
+    #standingSection {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        min-width: 0;
+        overflow: hidden;
+    }
 
-    /* Show FAB, hide the "New Expense" button inside the right column */
+    /* All sections: stay within their column */
+    .section { min-width: 0; overflow: hidden; }
+
+    /* Budget bar header: wrap amounts on narrow screen */
+    .budget-bar-header { flex-wrap: wrap; gap: 4px; }
+    .budget-amounts { font-size: 0.75rem; }
+
+    /* ── FAB + NEW EXPENSE BUTTON ── */
     .fab { display: flex; }
     .btn-new-expense { display: none; }
 
-    /* Modals: full screen on mobile */
-    .overlay { padding: 0; align-items: flex-end; }
+    /* ── FILTER BAR (inside narrow expenses column) ── */
+    .filter-bar { gap: 3px; flex-wrap: wrap; padding: 4px; }
+    .filter-btn  { font-size: 0.68rem; padding: 6px 3px; flex: 1 1 auto; }
 
+    /* ── EXPENSES SECTION (narrow right column) ── */
+    /* Stack title above controls so nothing overflows horizontally */
+    .col-right .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .controls-row { gap: 4px; flex-wrap: wrap; width: 100%; }
+    .btn-sm      { font-size: 0.72rem; padding: 5px 7px; }
+    .select-sm   { font-size: 0.72rem; padding: 5px 7px; }
+    .btn-download { font-size: 0.68rem; padding: 5px 6px; }
+
+    /* Expense items: compact for narrow column */
+    .expense-item   { gap: 8px; padding: 10px 4px; }
+    .expense-icon   { width: 28px; height: 28px; font-size: 1rem; }
+    .expense-name   { font-size: 0.78rem; }
+    .expense-meta   { font-size: 0.66rem; }
+    .expense-amount { font-size: 0.78rem; }
+
+    /* Expense list: scrollable within the column, stops before FAB */
+    .col-right > .section { overflow-y: auto; max-height: 52vh; }
+
+    /* ── MODALS ── */
+    .overlay { padding: 0; align-items: flex-end; }
     .modal {
         max-width: 100%;
         width: 100%;
         border-radius: var(--radius) var(--radius) 0 0;
         max-height: 92vh;
     }
+    .modal-wide { max-width: 100%; }
 
-    .modal-wide {
-        max-width: 100%;
-    }
-
-    /* Filter bar: make buttons smaller */
-    .filter-bar { gap: 4px; }
-    .filter-btn { font-size: 0.75rem; padding: 9px 6px; }
-
-    /* Controls row in section header: tighter */
-    .controls-row { gap: 4px; }
-    .btn-sm, .select-sm { font-size: 0.75rem; }
-    .btn-download { font-size: 0.72rem; padding: 5px 8px; }
-
-    /* Category grid: 5 columns still works, slightly smaller */
+    /* Category grid in modals */
     .cat-name { font-size: 0.5rem; }
-
-    /* Expense items: ensure amount doesn't overflow */
-    .expense-amount { font-size: 0.85rem; }
-    .expense-name   { font-size: 0.85rem; }
 }
 
 /* ============================================================
