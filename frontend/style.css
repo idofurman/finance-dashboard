@@ -935,7 +935,7 @@ body {
         height: 52px;
         flex-shrink: 0;
     }
-    .app-title { font-size: 1.05rem; }
+    .app-title { font-size: 1.15rem; }
 
     /* Hide name/clock — not enough room on mobile */
     .header-center { display: none; }
@@ -959,8 +959,8 @@ body {
     .header-actions .select-sm {
         white-space: nowrap;
         flex-shrink: 0;
-        font-size: 0.78rem;
-        padding: 6px 10px;
+        font-size: 0.88rem;
+        padding: 7px 12px;
     }
 
     /* Month bar sits below both header rows (~52 + ~42 = 94px) */
