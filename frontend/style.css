@@ -1356,50 +1356,105 @@ body {
     border-radius: 50%;
 }
 
+/* --- Filled blobs --- */
 .bg-shape-1 {
-    width: 640px;
-    height: 640px;
-    top: -220px;
-    right: -180px;
-    background: rgba(79, 70, 229, 0.05);
+    width: 700px;
+    height: 700px;
+    top: -250px;
+    right: -200px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.11) 0%, rgba(79, 70, 229, 0) 70%);
 }
 
 .bg-shape-2 {
-    width: 480px;
-    height: 480px;
-    bottom: -140px;
-    left: -140px;
-    background: rgba(99, 102, 241, 0.04);
+    width: 560px;
+    height: 560px;
+    bottom: -160px;
+    left: -160px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.10) 0%, rgba(99, 102, 241, 0) 70%);
 }
 
 .bg-shape-3 {
-    width: 260px;
-    height: 260px;
-    top: 120px;
-    left: 60px;
-    background: rgba(129, 140, 248, 0.04);
+    width: 300px;
+    height: 300px;
+    top: 90px;
+    left: 40px;
+    background: rgba(129, 140, 248, 0.08);
 }
 
 .bg-shape-4 {
-    width: 160px;
-    height: 160px;
-    top: 38%;
-    right: 6%;
-    background: rgba(79, 70, 229, 0.035);
+    width: 200px;
+    height: 200px;
+    top: 35%;
+    right: 4%;
+    background: rgba(79, 70, 229, 0.08);
 }
 
 .bg-shape-5 {
-    width: 90px;
-    height: 90px;
-    bottom: 18%;
-    left: 42%;
-    background: rgba(99, 102, 241, 0.04);
+    width: 110px;
+    height: 110px;
+    bottom: 15%;
+    left: 40%;
+    background: rgba(99, 102, 241, 0.09);
 }
 
 .bg-shape-6 {
-    width: 340px;
-    height: 340px;
-    top: 55%;
-    right: 20%;
-    background: rgba(167, 139, 250, 0.03);
+    width: 400px;
+    height: 400px;
+    top: 50%;
+    right: 15%;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.08) 0%, rgba(167, 139, 250, 0) 70%);
+}
+
+/* --- Rings (outline only) --- */
+.bg-shape-7 {
+    width: 440px;
+    height: 440px;
+    top: 60px;
+    left: -80px;
+    background: transparent;
+    border: 2px solid rgba(79, 70, 229, 0.09);
+}
+
+.bg-shape-8 {
+    width: 240px;
+    height: 240px;
+    top: 45%;
+    left: 30%;
+    background: transparent;
+    border: 1.5px solid rgba(99, 102, 241, 0.10);
+}
+
+.bg-shape-9 {
+    width: 140px;
+    height: 140px;
+    bottom: 10%;
+    right: 8%;
+    background: transparent;
+    border: 2px solid rgba(129, 140, 248, 0.11);
+}
+
+.bg-shape-10 {
+    width: 180px;
+    height: 180px;
+    top: 20%;
+    right: 18%;
+    background: transparent;
+    border: 1.5px solid rgba(79, 70, 229, 0.09);
+}
+
+/* --- Small accents --- */
+.bg-shape-11 {
+    width: 70px;
+    height: 70px;
+    top: 14%;
+    left: 50%;
+    background: rgba(129, 140, 248, 0.11);
+}
+
+.bg-shape-12 {
+    width: 220px;
+    height: 220px;
+    top: 62%;
+    left: 5%;
+    background: rgba(167, 139, 250, 0.07);
 }
