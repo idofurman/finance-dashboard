@@ -175,25 +175,33 @@ A real family expense tracking app that Ido and his parents will actually use da
 
 ---
 
-### 🔄 Week 4 — Monitoring + ArgoCD + Polish (IN PROGRESS / NEXT)
+### 🔄 Week 4 — Auth + Security + ArgoCD + Polish (MOSTLY DONE)
 
-**Goal:** Observability, GitOps deployment, and demo-ready project
+**Goal:** Production-ready app with auth, HTTPS, GitOps, observability, and demo-ready
 
 **Steps:**
-1. Deploy Prometheus + Grafana into k3s
-2. Add metrics endpoint to Flask app (`/metrics`)
-3. Build Grafana dashboard
-4. Set up 2 alert rules
-5. Install ArgoCD
-6. Configure ArgoCD to watch the GitHub repo
-7. Write Bash health check scripts
-8. Write README
-9. Record demo video
+1. ✅ JWT auth — /auth/register, /auth/login, /auth/me (PyJWT + bcrypt)
+2. ✅ Multi-user + shared expense pools (invite/accept/decline flow)
+3. ✅ HTTPS + domain — allexpense.me via cert-manager + Let's Encrypt on k3s
+4. ✅ Security hardening — purged secrets from git history, rotated all keys, immutable ECR tags
+5. ✅ Terraform hardening — S3 backend for state, DynamoDB lock, removed NodePort, $10/month budget
+6. ✅ ArgoCD — installed, wired to GitHub repo, CI/CD patches image tag and ArgoCD syncs it
+7. ✅ ECR credentials auto-refresh — K8s CronJob refreshes docker-registry secret every 6 hours
+8. ✅ Bash health check script — `scripts/health-check.sh`
+9. ✅ Live exchange rates — USD/EUR pulled from API, historical rate locked at time of entry
+10. ✅ Responsive mobile layout — same design, phone-compatible (viewport fix + @media CSS)
+11. ⏳ Prometheus + Grafana — NOT YET DONE
+12. ⏳ README — file exists but empty
+13. ⏳ Demo video — not recorded
 
-**Bonus (if time allows):**
-- Bank scraping via `israeli-bank-scrapers` — auto-import from Cal/Max/Isracard nightly via K8s CronJob
-- Slack alert integration
-- Note: israeli-bank-scrapers stores bank credentials on the server — acceptable for self-hosted family use
+**Extra features shipped (beyond academy requirements):**
+- Receipt scanner (Claude Haiku vision API → auto-fills expense form)
+- Custom month picker popup (translated EN/HE)
+- Background decorative shapes + favicon
+- Daily avg pill in summary card
+- Excel/CSV download
+- Hebrew/English i18n throughout
+- Shared pools (family expense groups)
 
 **Key concepts to teach:**
 - The difference between logs, metrics, and traces
@@ -294,17 +302,17 @@ __pycache__/
 
 | Requirement | Status | Notes |
 |---|---|---|
-| Git repository | ✅ Done | github.com/idofurman/finance-dashboard |
-| Docker containers | ✅ Done | backend + db |
-| Kubernetes deployment | ✅ Done | k3s on EC2 t3.small |
-| Helm chart | ✅ Done | finance-chart/, deployed via helm upgrade |
-| Terraform | ✅ Done | ECR, EC2 t3.small, IAM, budget alerts |
-| GitHub Actions CI/CD | ✅ Done | test → build → ECR push → deploy to EC2 |
-| AWS ECR | ✅ Done | Private ECR repository for finance-backend image |
-| ArgoCD | ⏳ Week 4 | GitOps |
-| Prometheus + Grafana | ⏳ Week 4 | monitoring |
-| Bash scripts | ⏳ Week 4 | health checks |
-| README + docs | ⏳ Week 4 | final polish |
+| Git repository | ✅ Done | github.com/idofurman/finance-dashboard (public) |
+| Docker containers | ✅ Done | backend + db, Dockerfile at repo root |
+| Kubernetes deployment | ✅ Done | k3s on EC2 t3.medium, Ubuntu 22.04 |
+| Helm chart | ✅ Done | finance-chart/, deployed via helm upgrade --set image.tag=$SHA |
+| Terraform | ✅ Done | ECR (immutable), EC2, S3 state backend, DynamoDB lock, $10 budget |
+| GitHub Actions CI/CD | ✅ Done | test → build → ECR push → Trivy scan → ArgoCD deploy |
+| AWS ECR | ✅ Done | Immutable tags, lifecycle policy (keep last 10) |
+| ArgoCD | ✅ Done | Installed on k3s, watches GitHub repo, CI patches image tag |
+| Bash scripts | ✅ Done | scripts/health-check.sh |
+| Prometheus + Grafana | ⏳ Remaining | Flask has /metrics but Prometheus not deployed yet |
+| README + docs | ⏳ Remaining | File exists but empty |
 
 ---
 
