@@ -774,6 +774,16 @@ body {
     letter-spacing: 0.05em;
 }
 
+.invite-section-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
 .modal-error {
     display: none;
     background: var(--danger-light);
