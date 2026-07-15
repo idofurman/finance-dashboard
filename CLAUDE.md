@@ -190,7 +190,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 8. ✅ Bash health check script — `scripts/health-check.sh`
 9. ✅ Live exchange rates — USD/EUR pulled from API, historical rate locked at time of entry
 10. ✅ Responsive mobile layout — same design, phone-compatible (viewport fix + @media CSS)
-11. ⏳ Prometheus + Grafana — NOT YET DONE
+11. ✅ Prometheus + Grafana — deployed in `monitoring` namespace on k3s, Flask /metrics endpoint active
 12. ⏳ README — file exists but empty
 13. ⏳ Demo video — not recorded
 
@@ -311,7 +311,7 @@ __pycache__/
 | AWS ECR | ✅ Done | Immutable tags, lifecycle policy (keep last 10) |
 | ArgoCD | ✅ Done | Installed on k3s, watches GitHub repo, CI patches image tag |
 | Bash scripts | ✅ Done | scripts/health-check.sh |
-| Prometheus + Grafana | ⏳ Remaining | Flask has /metrics but Prometheus not deployed yet |
+| Prometheus + Grafana | ✅ Done | Both running in `monitoring` namespace on k3s |
 | README + docs | ⏳ Remaining | File exists but empty |
 
 ---
