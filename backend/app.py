@@ -425,6 +425,56 @@ def decline_invitation(pool_id):
         conn.close()
 
 
+@app.route('/pools/<int:pool_id>', methods=['DELETE'])
+@require_auth
+def delete_pool(pool_id):
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            "SELECT role FROM pool_members WHERE pool_id=%s AND user_id=%s AND status='active'",
+            (pool_id, g.user_id)
+        )
+        member = cur.fetchone()
+        if not member or member['role'] != 'owner':
+            return jsonify({'error': 'Only the pool owner can delete it'}), 403
+        cur.execute("DELETE FROM expenses WHERE pool_id=%s", (pool_id,))
+        cur.execute("DELETE FROM budgets WHERE pool_id=%s", (pool_id,))
+        cur.execute("DELETE FROM standing_orders WHERE pool_id=%s", (pool_id,))
+        cur.execute("DELETE FROM pools WHERE id=%s", (pool_id,))
+        conn.commit()
+        return jsonify({'message': 'Pool deleted'})
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route('/pools/<int:pool_id>/leave', methods=['DELETE'])
+@require_auth
+def leave_pool(pool_id):
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute(
+            "SELECT role FROM pool_members WHERE pool_id=%s AND user_id=%s AND status='active'",
+            (pool_id, g.user_id)
+        )
+        member = cur.fetchone()
+        if not member:
+            return jsonify({'error': 'Not a member of this pool'}), 404
+        if member['role'] == 'owner':
+            return jsonify({'error': 'Owner cannot leave — delete the pool instead'}), 400
+        cur.execute(
+            "DELETE FROM pool_members WHERE pool_id=%s AND user_id=%s",
+            (pool_id, g.user_id)
+        )
+        conn.commit()
+        return jsonify({'message': 'Left pool successfully'})
+    finally:
+        cur.close()
+        conn.close()
+
+
 # ============================================================
 # EXPENSES
 # ============================================================

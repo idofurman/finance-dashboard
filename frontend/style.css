@@ -62,6 +62,12 @@ body {
     overflow: visible;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .app-title {
     font-size: 1.3rem;
     font-weight: 800;
@@ -745,6 +751,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    padding-top: 6px;
 }
 
 /* ============================================================
@@ -899,7 +906,7 @@ body {
 
 .btn-save:hover { opacity: 0.88; }
 
-.divider { border: none; border-top: 1px solid var(--border); }
+.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 
 /* ============================================================
    MOBILE — single column below 768px
@@ -931,6 +938,7 @@ body {
    ============================================================ */
 [dir="rtl"] .fab             { right: auto; left: 28px; }
 [dir="rtl"] .header          { direction: rtl; }
+[dir="rtl"] .header-left     { direction: rtl; }
 [dir="rtl"] .section-header  { direction: rtl; }
 [dir="rtl"] .expense-item    { direction: rtl; }
 [dir="rtl"] .budget-bar-header { direction: rtl; }

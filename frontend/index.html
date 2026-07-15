@@ -47,24 +47,26 @@
 
     <!-- Header -->
     <header class="header">
-        <h1 class="app-title" id="appTitle">💰 AllExpense</h1>
-        <div class="header-center">
-            <div class="header-welcome" id="headerWelcome" onclick="changeUserName()"></div>
-            <div class="header-clock" id="headerClock"></div>
-        </div>
-        <div class="header-actions">
+        <div class="header-left">
+            <h1 class="app-title" id="appTitle">💰 AllExpense</h1>
             <button class="btn-ghost" id="langToggle">🌐 HE</button>
             <select class="select-sm" id="currencySelect">
                 <option value="ILS">₪ ILS</option>
                 <option value="USD">$ USD</option>
                 <option value="EUR">€ EUR</option>
             </select>
+        </div>
+        <div class="header-center">
+            <div class="header-welcome" id="headerWelcome" onclick="changeUserName()"></div>
+            <div class="header-clock" id="headerClock"></div>
+        </div>
+        <div class="header-actions">
             <select class="select-sm" id="poolContextSelect" title="Context"></select>
             <button class="btn-ghost" id="openYearlyModal">📅 Year</button>
             <button class="btn-ghost" id="openStandingModal">🔄 Standing Orders</button>
             <button class="btn-ghost" id="openBudgetModal">🎯 Budgets</button>
             <button class="btn-ghost" id="openPoolsModal">👥 Pools</button>
-            <button class="btn-ghost btn-logout" id="logoutBtn">🚪</button>
+            <button class="btn-ghost btn-logout" id="logoutBtn">🚪 Logout</button>
         </div>
     </header>
 
@@ -383,6 +385,13 @@ const I18N = {
         downloadColCategory:     'Category',
         downloadColAmount:       'Amount',
         downloadColCurrency:     'Currency',
+        poolsBtn:                '👥 Pools',
+        personal:                '👤 Personal',
+        logoutBtn:               '🚪 Logout',
+        deletePool:              '🗑️ Delete',
+        leavePool:               '↩ Leave',
+        confirmDeletePool:       'Delete this pool and ALL its expenses?',
+        confirmLeavePool:        'Leave this pool?',
         yearlyViewBtn:           '📅 Year',
         labelYearlyView:         'Yearly View',
         labelYearlyTotal:        'Total for the Year',
@@ -446,6 +455,13 @@ const I18N = {
         downloadColCategory:     'קטגוריה',
         downloadColAmount:       'סכום',
         downloadColCurrency:     'מטבע',
+        poolsBtn:                '👥 קבוצות',
+        personal:                '👤 אישי',
+        logoutBtn:               '🚪 התנתק',
+        deletePool:              '🗑️ מחק',
+        leavePool:               '↩ עזוב',
+        confirmDeletePool:       'למחוק את הקבוצה וכל ההוצאות שלה?',
+        confirmLeavePool:        'לעזוב את הקבוצה?',
         yearlyViewBtn:           '📅 שנה',
         labelYearlyView:         'סיכום שנתי',
         labelYearlyTotal:        'סה"כ לשנה',
@@ -504,7 +520,7 @@ async function loadUser() {
 
 function renderPoolContextSwitcher() {
     const sel = document.getElementById('poolContextSelect');
-    sel.innerHTML = `<option value="">👤 Personal</option>`;
+    sel.innerHTML = `<option value="">${t('personal')}</option>`;
     state.pools.forEach(p => {
         const opt = document.createElement('option');
         opt.value = p.id;
@@ -694,13 +710,18 @@ function renderPoolsModal() {
         state.pools.forEach(p => {
             const row = document.createElement('div');
             row.className = 'expense-item';
+            const isOwner = p.role === 'owner';
             row.innerHTML = `
                 <div class="expense-details">
                     <span class="expense-name">👥 ${p.name}</span>
                     <span class="expense-meta">${p.role}</span>
                 </div>
-                <div class="expense-right">
-                    <button class="btn-sm" onclick="openInviteSection(${p.id}, '${p.name.replace(/'/g,"\\'")}')">+ Invite</button>
+                <div class="expense-right" style="gap:6px">
+                    ${isOwner ? `<button class="btn-sm" onclick="openInviteSection(${p.id}, '${p.name.replace(/'/g,"\\'")}')">+ Invite</button>` : ''}
+                    ${isOwner
+                        ? `<button class="btn-delete" onclick="handleDeletePool(${p.id})" title="${t('deletePool')}">🗑️</button>`
+                        : `<button class="btn-delete" onclick="handleLeavePool(${p.id})" title="${t('leavePool')}">↩</button>`
+                    }
                 </div>
             `;
             poolsList.appendChild(row);
@@ -763,6 +784,32 @@ async function handleDeclineInvite(poolId) {
     await fetch(`${API_URL}/pools/${poolId}/decline`, { method: 'DELETE', headers: getAuthHeaders() });
     await loadUser();
     renderPoolsModal();
+}
+
+async function handleDeletePool(poolId) {
+    if (!confirm(t('confirmDeletePool'))) return;
+    const res = await fetch(`${API_URL}/pools/${poolId}`, { method: 'DELETE', headers: getAuthHeaders() });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+    if (state.currentPool && state.currentPool.id === poolId) state.currentPool = null;
+    await loadUser();
+    renderPoolsModal();
+    renderPoolContextSwitcher();
+    await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
+    renderAll();
+}
+
+async function handleLeavePool(poolId) {
+    if (!confirm(t('confirmLeavePool'))) return;
+    const res = await fetch(`${API_URL}/pools/${poolId}/leave`, { method: 'DELETE', headers: getAuthHeaders() });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+    if (state.currentPool && state.currentPool.id === poolId) state.currentPool = null;
+    await loadUser();
+    renderPoolsModal();
+    renderPoolContextSwitcher();
+    await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
+    renderAll();
 }
 
 function enforceInputLang(inputId, warnId) {
@@ -1224,9 +1271,12 @@ function updateLanguage() {
     document.getElementById('openBudgetModal').textContent  = t('budgetsBtn');
     document.getElementById('openStandingModal').textContent = t('standingBtn');
     document.getElementById('openYearlyModal').textContent   = t('yearlyViewBtn');
+    document.getElementById('openPoolsModal').textContent    = t('poolsBtn');
+    document.getElementById('logoutBtn').textContent         = t('logoutBtn');
     document.getElementById('labelYearlyView').textContent   = t('labelYearlyView');
     document.getElementById('labelYearlyTotal').textContent  = t('labelYearlyTotal');
     document.getElementById('labelYearlyByCategory').textContent = t('labelYearlyByCategory');
+    renderPoolContextSwitcher();
     renderWelcome();
     updateClock();
     document.getElementById('timeToggleLabel').textContent = t('timePlaceholder');
