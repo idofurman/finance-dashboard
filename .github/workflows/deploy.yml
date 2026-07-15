@@ -97,20 +97,23 @@ jobs:
 
       - name: Deploy to EC2 via SSH
         env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} bash << EOF
+            set -e
+            ACCOUNT_ID=\$(aws sts get-caller-identity --query Account --output text)
+            ECR_REGISTRY="\${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+
             TOKEN=\$(aws ecr get-login-password --region us-east-1)
             sudo k3s kubectl create secret docker-registry ecr-credentials \
-              --docker-server=${ECR_REGISTRY} \
+              --docker-server=\${ECR_REGISTRY} \
               --docker-username=AWS \
               --docker-password=\$TOKEN \
               --dry-run=client -o yaml | sudo k3s kubectl apply -f -
 
             helm upgrade --install finance ~/finance-chart \
               --kubeconfig ~/.kube/config \
-              --set backend.image.repository=${ECR_REGISTRY}/finance-backend \
+              --set backend.image.repository=\${ECR_REGISTRY}/finance-backend \
               --set backend.image.tag=${IMAGE_TAG}
 
             sudo k3s kubectl rollout status deployment/backend --timeout=180s
