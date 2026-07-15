@@ -189,7 +189,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 7. ✅ ECR credentials auto-refresh — K8s CronJob refreshes docker-registry secret every 6 hours
 8. ✅ Bash health check script — `scripts/health-check.sh`
 9. ✅ Live exchange rates — USD/EUR pulled from API, historical rate locked at time of entry
-10. ✅ Responsive mobile layout — same design, phone-compatible (viewport fix + @media CSS)
+10. ✅ Responsive mobile layout — fully polished: summary+expenses side by side, no overflow, emoji+category same line, all section titles visible, chart tooltip shows price+percentage
 11. ✅ Prometheus + Grafana — deployed in `monitoring` namespace on k3s, Flask /metrics endpoint active
 12. ⏳ README — file exists but empty
 13. ⏳ Demo video — not recorded
