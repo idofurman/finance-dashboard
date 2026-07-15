@@ -27,7 +27,6 @@ html {
     font-size: 16px;
     scroll-behavior: smooth;
     overflow-y: scroll;
-    overflow-x: hidden;
 }
 
 body {
@@ -914,84 +913,7 @@ body {
 
 .divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 
-/* ============================================================
-   MOBILE — single column below 768px
-   ============================================================ */
-@media (max-width: 768px) {
-    /* Header: 2-row layout */
-    .header {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        height: auto;
-        padding: 0;
-    }
-
-    /* Row 1: title + lang + currency (from .header-left) */
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0 16px;
-        height: 52px;
-        flex-shrink: 0;
-    }
-    .app-title { font-size: 1.15rem; }
-
-    /* Hide name/clock — not enough room on mobile */
-    .header-center { display: none; }
-
-    /* Row 2: action buttons as a horizontal scroll strip */
-    .header-actions {
-        display: flex;
-        align-items: center;
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        gap: 6px;
-        padding: 7px 16px;
-        border-top: 1px solid var(--border);
-        flex-shrink: 0;
-        justify-self: unset;
-    }
-    .header-actions::-webkit-scrollbar { display: none; }
-    .header-actions .btn-ghost,
-    .header-actions .select-sm {
-        white-space: nowrap;
-        flex-shrink: 0;
-        font-size: 0.88rem;
-        padding: 7px 12px;
-    }
-
-    /* Month bar sits below both header rows (~52 + ~42 = 94px) */
-    .month-bar { top: 94px; padding: 8px 16px; gap: 12px; }
-    .month-bar-label { display: none; }
-
-    .content-grid {
-        grid-template-columns: 1fr;
-        padding: 16px;
-        gap: 12px;
-    }
-
-    /* Less inner padding on mobile so controls have room */
-    .section { padding: 16px; }
-
-    /* Section header: wrap onto 2 lines if controls overflow */
-    .section-header { flex-wrap: wrap; gap: 6px; }
-
-    /* Controls row: hide Excel (not useful on mobile) */
-    .btn-download { display: none; }
-
-    .fab { display: flex; }
-    .btn-new-expense { display: none; }
-
-    .summary-card { padding: 20px 18px; }
-    .total-amount { font-size: 1.9rem; }
-
-    .modal { border-radius: var(--radius) var(--radius) 0 0; }
-    .overlay { align-items: flex-end; padding: 0; }
-}
+/* No mobile overrides — phone shows the same layout as desktop */
 
 /* ============================================================
    RTL SUPPORT
