@@ -544,7 +544,7 @@ body {
     display: none;
 }
 
-.cat-meta-icon { display: none; }
+.cat-meta-icon { display: inline; }
 
 .standing-total {
     font-size: 0.85rem;
@@ -1055,7 +1055,6 @@ body {
     .expense-icon   { display: none; }
     .expense-name   { font-size: 0.78rem; white-space: normal; overflow: visible; text-overflow: clip; }
     .expense-meta   { font-size: 0.66rem; }
-    .cat-meta-icon  { display: inline; }
     .expense-amount { font-size: 0.78rem; }
 
     /* Expense list: scrollable within the column, stops before FAB */
