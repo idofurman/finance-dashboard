@@ -225,10 +225,7 @@
                 <button type="button" class="currency-pill" data-currency="ILS">₪ ILS</button>
                 <button type="button" class="currency-pill" data-currency="USD">$ USD</button>
                 <button type="button" class="currency-pill" data-currency="EUR">€ EUR</button>
-                <button type="button" class="currency-pill" data-currency="BTC">₿ BTC</button>
-                <button type="button" class="currency-pill" data-currency="ETH">Ξ ETH</button>
             </div>
-            <div id="cryptoPriceHint" class="crypto-price-hint" style="display:none"></div>
             <p class="input-label" id="labelDate">Day of Purchase</p>
             <input class="input" type="date" id="expenseDate">
             <p class="input-label" id="labelTime">Time (optional)</p>
@@ -331,20 +328,20 @@ const CATEGORIES = [
     { key: 'other',         icon: '💰', en: 'Other',         he: 'אחר'      },
 ];
 
-const CURRENCY_SYMBOLS = { ILS: '₪', USD: '$', EUR: '€', BTC: '₿', ETH: 'Ξ' };
-const RATES_TO_ILS    = { ILS: 1, USD: 3.7, EUR: 4.0 };
-const CRYPTO_SYMBOLS  = new Set(['BTC', 'ETH']);
+const CURRENCY_SYMBOLS  = { ILS: '₪', USD: '$', EUR: '€' };
+const FALLBACK_RATES    = { ILS: 1, USD: 3.7, EUR: 4.0 }; // used only if live rates haven't loaded yet
 
-// rateAtEntry: ILS per coin at the time the expense was saved (crypto only)
-// For display currency, always uses current live rate.
+// rateAtEntry: ILS per unit of currency at the moment the expense was saved.
+// Historical expenses always use this locked rate; display currency uses current live rate.
 function convertAmount(amount, fromCurrency, toCurrency, rateAtEntry) {
     if (!fromCurrency || fromCurrency === toCurrency) return amount;
-    const fromRate = CRYPTO_SYMBOLS.has(fromCurrency)
-        ? (rateAtEntry ?? state.cryptoRates[fromCurrency] ?? 0)
-        : (RATES_TO_ILS[fromCurrency] ?? 1);
-    const toRate = CRYPTO_SYMBOLS.has(toCurrency)
-        ? (state.cryptoRates[toCurrency] ?? 1)
-        : (RATES_TO_ILS[toCurrency] ?? 1);
+    const fromRate = rateAtEntry
+        ?? state.exchangeRates[fromCurrency]
+        ?? FALLBACK_RATES[fromCurrency]
+        ?? 1;
+    const toRate = state.exchangeRates[toCurrency]
+        ?? FALLBACK_RATES[toCurrency]
+        ?? 1;
     return (amount * fromRate) / toRate;
 }
 
@@ -516,8 +513,7 @@ const state = {
     currentPool:              null,
     invitations:              [],
     selectedInvitePoolId:     null,
-    cryptoRates:              {},   // { BTC: <ILS per coin>, ETH: <ILS per coin> }
-    cryptoFetchedAt:          null, // ISO string of last successful fetch
+    exchangeRates:            {},   // { USD: <ILS per 1 USD>, EUR: <ILS per 1 EUR> } — live, updated every 3 days
 };
 
 // ============================================================
@@ -1394,8 +1390,10 @@ async function handleAddExpense() {
 
     submitBtn.disabled = false;
     const expenseData = { name, name_he: nameHe || null, amount, category, date, purchase_time: purchaseTime, currency: state.expenseInputCurrency };
-    if (CRYPTO_SYMBOLS.has(state.expenseInputCurrency)) {
-        expenseData.rate_at_entry = state.cryptoRates[state.expenseInputCurrency] ?? null;
+    if (state.expenseInputCurrency !== 'ILS') {
+        expenseData.rate_at_entry = state.exchangeRates[state.expenseInputCurrency]
+            ?? FALLBACK_RATES[state.expenseInputCurrency]
+            ?? null;
     }
     await addExpense(expenseData);
     document.getElementById('expenseName').value    = '';
@@ -1593,7 +1591,6 @@ function syncExpenseCurrencyPills(currency) {
     document.querySelectorAll('.currency-pill').forEach(b => {
         b.classList.toggle('active', b.dataset.currency === currency);
     });
-    updateCryptoPriceHint();
 }
 
 function openAddExpenseModal() {
@@ -1748,29 +1745,15 @@ document.getElementById('submitInvite').addEventListener('click', handleSendInvi
 // ============================================================
 // INIT
 // ============================================================
-async function fetchCryptoPrices() {
+async function fetchExchangeRates() {
     try {
-        const res = await fetch(`${API_URL}/crypto-prices`, { headers: getAuthHeaders() });
+        const res = await fetch(`${API_URL}/exchange-rates`, { headers: getAuthHeaders() });
         if (!res.ok) return;
         const data = await res.json();
-        for (const [coin, info] of Object.entries(data)) {
-            state.cryptoRates[coin] = info.ils;
+        for (const [currency, info] of Object.entries(data)) {
+            state.exchangeRates[currency] = info.rate_to_ils;
         }
-        state.cryptoFetchedAt = data.BTC?.fetched_at ?? null;
-        updateCryptoPriceHint();
-    } catch { /* non-critical — crypto prices are optional */ }
-}
-
-function updateCryptoPriceHint() {
-    const hint = document.getElementById('cryptoPriceHint');
-    if (!hint) return;
-    const cur = state.expenseInputCurrency;
-    if (!CRYPTO_SYMBOLS.has(cur)) { hint.style.display = 'none'; return; }
-    const rate = state.cryptoRates[cur];
-    if (!rate) { hint.style.display = 'none'; return; }
-    const sym = CURRENCY_SYMBOLS[cur];
-    hint.textContent = `1 ${sym}${cur} ≈ ₪${rate.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-    hint.style.display = 'block';
+    } catch { /* non-critical — falls back to hardcoded rates */ }
 }
 
 async function init() {
@@ -1788,7 +1771,7 @@ async function init() {
 
     try {
         await loadUser();
-        fetchCryptoPrices(); // fire-and-forget — doesn't block app load
+        fetchExchangeRates(); // fire-and-forget — doesn't block app load
         await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
         renderAll();
         ensureTranslations();

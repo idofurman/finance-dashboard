@@ -107,13 +107,13 @@ def init_db():
     ''')
 
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS crypto_prices (
-            coin       TEXT PRIMARY KEY,
-            price_ils  NUMERIC NOT NULL,
-            price_usd  NUMERIC NOT NULL,
-            fetched_at TIMESTAMP NOT NULL
+        CREATE TABLE IF NOT EXISTS exchange_rates (
+            currency    TEXT PRIMARY KEY,
+            rate_to_ils NUMERIC NOT NULL,
+            fetched_at  TIMESTAMP NOT NULL
         )
     ''')
+    cur.execute("DROP TABLE IF EXISTS crypto_prices")
 
     # Migrations for existing deployments
     for col in ['name_he', 'purchase_time']:
@@ -488,70 +488,71 @@ def leave_pool(pool_id):
 
 
 # ============================================================
-# EXPENSES
+# EXCHANGE RATES  (USD, EUR → ILS, refreshed every 3 days)
 # ============================================================
-# Supported coins: symbol → CoinGecko ID
-CRYPTO_COINS = {'BTC': 'bitcoin', 'ETH': 'ethereum'}
+FIAT_CURRENCIES = ['USD', 'EUR']
 
-COINGECKO_URL = (
-    'https://api.coingecko.com/api/v3/simple/price'
-    '?ids=bitcoin,ethereum&vs_currencies=ils,usd'
-)
+# Frankfurter is a free, no-key public API maintained by the ECB
+# Returns how many of each currency you get per 1 ILS
+FRANKFURTER_URL = 'https://api.frankfurter.app/latest?from=ILS&to=USD,EUR'
 
 
-@app.route('/crypto-prices', methods=['GET'])
+@app.route('/exchange-rates', methods=['GET'])
 @require_auth
-def get_crypto_prices():
+def get_exchange_rates():
     conn = get_db()
     cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
-        # Return cached prices if all coins are fresher than 3 days
+        # Return cache if all currencies are fresher than 3 days
         cur.execute(
-            "SELECT coin, price_ils, price_usd, fetched_at FROM crypto_prices "
+            "SELECT currency, rate_to_ils, fetched_at FROM exchange_rates "
             "WHERE fetched_at > NOW() - INTERVAL '3 days'"
         )
-        cached = {r['coin']: r for r in cur.fetchall()}
+        cached = {r['currency']: r for r in cur.fetchall()}
 
-        if all(sym in cached for sym in CRYPTO_COINS):
+        if all(c in cached for c in FIAT_CURRENCIES):
             return jsonify({
-                sym: {
-                    'ils':        float(cached[sym]['price_ils']),
-                    'usd':        float(cached[sym]['price_usd']),
-                    'fetched_at': cached[sym]['fetched_at'].isoformat(),
+                c: {
+                    'rate_to_ils': float(cached[c]['rate_to_ils']),
+                    'fetched_at':  cached[c]['fetched_at'].isoformat(),
                 }
-                for sym in CRYPTO_COINS
+                for c in FIAT_CURRENCIES
             })
 
-        # Fetch fresh prices from CoinGecko
+        # Fetch live rates from Frankfurter (ECB data, free, no key)
+        # Response: { "rates": { "USD": 0.271, "EUR": 0.246 } }
+        # meaning 1 ILS = 0.271 USD  →  1 USD = 1/0.271 ≈ 3.69 ILS
         try:
-            req  = urllib.request.Request(COINGECKO_URL, headers={'Accept': 'application/json'})
+            req = urllib.request.Request(FRANKFURTER_URL, headers={'Accept': 'application/json'})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json_lib.loads(resp.read())
         except Exception:
-            # Fall back to stale cache rather than returning an error
             if cached:
                 return jsonify({
-                    sym: {'ils': float(cached[sym]['price_ils']), 'usd': float(cached[sym]['price_usd'])}
-                    for sym in CRYPTO_COINS if sym in cached
+                    c: {'rate_to_ils': float(cached[c]['rate_to_ils'])}
+                    for c in FIAT_CURRENCIES if c in cached
                 })
-            return jsonify({'error': 'Could not fetch crypto prices'}), 503
+            return jsonify({'error': 'Could not fetch exchange rates'}), 503
 
         result = {}
-        for sym, coin_id in CRYPTO_COINS.items():
-            if coin_id not in data:
+        rates  = data.get('rates', {})
+        for currency in FIAT_CURRENCIES:
+            rate_from_ils = rates.get(currency)
+            if not rate_from_ils:
                 continue
-            ils = float(data[coin_id].get('ils', 0))
-            usd = float(data[coin_id].get('usd', 0))
+            rate_to_ils = round(1.0 / rate_from_ils, 6)
             cur.execute(
-                """INSERT INTO crypto_prices (coin, price_ils, price_usd, fetched_at)
-                   VALUES (%s, %s, %s, NOW())
-                   ON CONFLICT (coin) DO UPDATE
-                     SET price_ils=EXCLUDED.price_ils,
-                         price_usd=EXCLUDED.price_usd,
+                """INSERT INTO exchange_rates (currency, rate_to_ils, fetched_at)
+                   VALUES (%s, %s, NOW())
+                   ON CONFLICT (currency) DO UPDATE
+                     SET rate_to_ils=EXCLUDED.rate_to_ils,
                          fetched_at=EXCLUDED.fetched_at""",
-                (sym, ils, usd)
+                (currency, rate_to_ils)
             )
-            result[sym] = {'ils': ils, 'usd': usd, 'fetched_at': datetime.now(timezone.utc).isoformat()}
+            result[currency] = {
+                'rate_to_ils': rate_to_ils,
+                'fetched_at':  datetime.now(timezone.utc).isoformat(),
+            }
 
         conn.commit()
         return jsonify(result)
@@ -614,7 +615,7 @@ def expenses_route():
     if pool_id and not is_pool_member(cur, pool_id, g.user_id):
         return jsonify({'error': 'Not a member of this pool'}), 403
 
-    rate_at_entry = data.get('rate_at_entry')  # ILS per coin, only for crypto
+    rate_at_entry = data.get('rate_at_entry')  # ILS per unit of currency at time of entry
 
     cur.execute(
         '''INSERT INTO expenses

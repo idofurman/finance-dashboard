@@ -1106,16 +1106,6 @@ body {
     color: var(--text);
 }
 
-.crypto-price-hint {
-    font-size: 0.75rem;
-    color: var(--muted);
-    background: var(--primary-light);
-    border-radius: var(--radius-sm);
-    padding: 5px 10px;
-    text-align: center;
-    font-weight: 500;
-}
-
 /* ============================================================
    RECEIPT SCANNER
    ============================================================ */
