@@ -545,6 +545,7 @@ body {
 }
 
 .cat-meta-icon { display: none; }
+.cat-meta-tag  { white-space: nowrap; }
 
 .standing-total {
     font-size: 0.85rem;
@@ -939,6 +940,7 @@ body {
     .header-actions {
         grid-column: 1;
         grid-row: 2;
+        justify-self: stretch;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         padding: 8px 0 10px;
@@ -1011,7 +1013,6 @@ body {
         grid-column: 1 / -1;
         grid-row: 2;
         min-width: 0;
-        overflow: hidden;
     }
 
     /* Standing orders — full width, row 3 */
@@ -1019,11 +1020,10 @@ body {
         grid-column: 1 / -1;
         grid-row: 3;
         min-width: 0;
-        overflow: hidden;
     }
 
-    /* All sections: stay within their column */
-    .section { min-width: 0; overflow: hidden; }
+    /* All sections: stay within their column; rely on .app for overflow guard */
+    .section { min-width: 0; }
 
     /* Budget bar header: wrap amounts on narrow screen */
     .budget-bar-header { flex-wrap: wrap; gap: 4px; }
