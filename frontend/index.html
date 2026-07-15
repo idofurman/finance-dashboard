@@ -43,6 +43,30 @@
         <button class="btn-icon" id="nextMonth">›</button>
     </div>
 
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon">💸</div>
+            <div class="stat-label" id="labelStatTotal">Total Spent</div>
+            <div class="stat-value" id="statTotal">₪0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🧾</div>
+            <div class="stat-label" id="labelStatCount">Transactions</div>
+            <div class="stat-value" id="statCount">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-label" id="labelStatAvg">Daily Average</div>
+            <div class="stat-value" id="statAvg">₪0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-label" id="labelStatTop">Top Category</div>
+            <div class="stat-value stat-value-sm" id="statTopCat">—</div>
+        </div>
+    </div>
+
     <div class="content-grid">
 
         <!-- LEFT COLUMN -->
@@ -868,8 +892,17 @@ function renderBudgetBars() {
     const section   = document.getElementById('budgetSection');
     const container = document.getElementById('budgetBars');
     container.innerHTML = '';
-    if (state.budgets.length === 0) { section.style.display = 'none'; return; }
     section.style.display = 'block';
+    if (state.budgets.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🎯</div>
+                <p class="empty-state-title">No budgets set</p>
+                <p class="empty-state-sub">Set monthly limits to track your spending</p>
+                <button class="btn-empty-action" onclick="document.getElementById('openBudgetModal').click()">+ Set a Budget</button>
+            </div>`;
+        return;
+    }
 
     state.budgets.forEach(b => {
         const cat  = getCat(b.category);
@@ -922,7 +955,12 @@ function renderExpenseList() {
     if (state.sortByCategory) expenses.sort((a, b) => a.category.localeCompare(b.category));
 
     if (expenses.length === 0) {
-        list.innerHTML = `<p class="empty-text">${t('noExpenses')}</p>`;
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🧾</div>
+                <p class="empty-state-title">${t('noExpenses')}</p>
+                <p class="empty-state-sub">Tap <strong>+</strong> to add your first expense</p>
+            </div>`;
         return;
     }
 
@@ -1168,6 +1206,26 @@ function updateLanguage() {
     renderCategoryFilter();
 }
 
+function updateStats() {
+    const expenses = state.expenses;
+    const total = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+    const count = expenses.length;
+    const daysInMonth = new Date(state.currentMonth.slice(0,4), state.currentMonth.slice(5,7), 0).getDate();
+    const avg = total / daysInMonth;
+
+    const byCategory = {};
+    expenses.forEach(e => {
+        byCategory[e.category] = (byCategory[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency);
+    });
+    const topCat = Object.entries(byCategory).sort((a,b) => b[1]-a[1])[0];
+    const topCatDisplay = topCat ? `${getCat(topCat[0]).icon} ${catName(topCat[0])}` : '—';
+
+    document.getElementById('statTotal').textContent   = fmt(total);
+    document.getElementById('statCount').textContent   = count;
+    document.getElementById('statAvg').textContent     = count > 0 ? fmt(avg) : fmt(0);
+    document.getElementById('statTopCat').textContent  = topCatDisplay;
+}
+
 function renderAll() {
     document.getElementById('monthPicker').value = state.currentMonth;
     document.getElementById('filterBar').style.display  = isCurrentMonth() ? 'flex' : 'none';
@@ -1176,6 +1234,7 @@ function renderAll() {
     renderBudgetBars();
     renderExpenseList();
     renderStandingOrders();
+    updateStats();
 }
 
 // ============================================================
