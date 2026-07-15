@@ -74,9 +74,16 @@
     <div class="month-bar">
         <span class="month-bar-label" id="monthBarLabel">📅 View month:</span>
         <button class="btn-icon" id="prevMonth">‹</button>
-        <span class="month-picker-wrap">
+        <span class="month-picker-wrap" id="monthPickerWrap" onclick="toggleMonthPickerPopup()">
             <span id="monthDisplay" class="month-display-label"></span>
-            <input type="month" id="monthPicker" class="month-picker-input">
+            <div id="monthPickerPopup" class="month-picker-popup" style="display:none" onclick="event.stopPropagation()">
+                <div class="mpp-year-nav">
+                    <button class="btn-icon" id="mppPrevYear">‹</button>
+                    <span id="mppYearLabel"></span>
+                    <button class="btn-icon" id="mppNextYear">›</button>
+                </div>
+                <div class="mpp-months" id="mppMonths"></div>
+            </div>
         </span>
         <button class="btn-icon" id="nextMonth">›</button>
     </div>
@@ -1264,7 +1271,6 @@ function updateLanguage() {
     document.getElementById('submitStanding').textContent = t('addStandingBtn');
     document.getElementById('sortToggle').textContent    = state.sortByCategory ? t('unsortBtn') : t('sortBtn');
     document.getElementById('downloadBtn').textContent   = t('downloadBtn');
-    document.getElementById('monthPicker').value = state.currentMonth;
     document.getElementById('monthDisplay').textContent = monthLabel();
     document.getElementById('monthBarLabel').textContent = t('monthBarLabel');
     document.getElementById('openAddModal2').textContent  = t('newExpenseBtn');
@@ -1296,7 +1302,6 @@ function updateStats() {
 }
 
 function renderAll() {
-    document.getElementById('monthPicker').value = state.currentMonth;
     document.getElementById('monthDisplay').textContent = monthLabel();
     document.getElementById('filterBar').style.display  = isCurrentMonth() ? 'flex' : 'none';
     renderSummary();
@@ -1461,19 +1466,63 @@ document.getElementById('currencySelect').addEventListener('change', e => {
 document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
 document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
 
-document.getElementById('monthPicker').addEventListener('change', async e => {
-    const val = e.target.value;
-    if (!val) return;
+// ── Custom month picker popup ──────────────────────────────────
+let mppYear = parseInt(state.currentMonth.slice(0, 4));
+
+function toggleMonthPickerPopup() {
+    const popup = document.getElementById('monthPickerPopup');
+    if (popup.style.display === 'none') openMonthPickerPopup();
+    else closeMonthPickerPopup();
+}
+
+function openMonthPickerPopup() {
+    mppYear = parseInt(state.currentMonth.slice(0, 4));
+    renderMonthPickerPopup();
+    document.getElementById('monthPickerPopup').style.display = 'block';
+}
+
+function closeMonthPickerPopup() {
+    document.getElementById('monthPickerPopup').style.display = 'none';
+}
+
+function renderMonthPickerPopup() {
     const now = new Date();
-    const max = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    if (val > max) { e.target.value = state.currentMonth; return; }
-    state.currentMonth = val;
+    const maxYear = now.getFullYear();
+    const maxMon  = now.getMonth() + 1;
+    document.getElementById('mppYearLabel').textContent = mppYear;
+    document.getElementById('mppPrevYear').disabled = mppYear <= 2000;
+    document.getElementById('mppNextYear').disabled = mppYear >= maxYear;
+    const names   = t('monthNames');
+    const curYear = parseInt(state.currentMonth.slice(0, 4));
+    const curMon  = parseInt(state.currentMonth.slice(5, 7));
+    document.getElementById('mppMonths').innerHTML = names.map((name, i) => {
+        const mon      = i + 1;
+        const disabled = mppYear > maxYear || (mppYear === maxYear && mon > maxMon);
+        const active   = mppYear === curYear && mon === curMon;
+        return `<button class="mpp-month-btn${active ? ' active' : ''}" ${disabled ? 'disabled' : ''} onclick="selectMppMonth(${mon})">${name.slice(0, 3)}</button>`;
+    }).join('');
+}
+
+async function selectMppMonth(mon) {
+    state.currentMonth = `${mppYear}-${String(mon).padStart(2, '0')}`;
     state.filter = 'month';
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('filterMonth').classList.add('active');
+    closeMonthPickerPopup();
     await fetchExpenses();
     await fetchBudgets();
     renderAll();
+}
+
+document.getElementById('mppPrevYear').addEventListener('click', e => {
+    e.stopPropagation(); mppYear--; renderMonthPickerPopup();
+});
+document.getElementById('mppNextYear').addEventListener('click', e => {
+    e.stopPropagation(); mppYear++; renderMonthPickerPopup();
+});
+document.addEventListener('click', e => {
+    if (!document.getElementById('monthPickerWrap').contains(e.target))
+        closeMonthPickerPopup();
 });
 
 document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -1686,12 +1735,6 @@ async function init() {
         window.location.href = '/';
         return;
     }
-
-    const now = new Date();
-    const maxMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const picker = document.getElementById('monthPicker');
-    picker.max   = maxMonth;
-    picker.value = state.currentMonth;
 
     renderCategoryDropdown();
     renderCategoryGrid('standingCategoryGrid', 'standingSelectedCategory');
