@@ -6,6 +6,8 @@ import psycopg2.extras
 import os
 import jwt
 import bcrypt
+import urllib.request
+import json as json_lib
 from datetime import date, timedelta, datetime, timezone
 from functools import wraps
 
@@ -104,11 +106,21 @@ def init_db():
         )
     ''')
 
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS crypto_prices (
+            coin       TEXT PRIMARY KEY,
+            price_ils  NUMERIC NOT NULL,
+            price_usd  NUMERIC NOT NULL,
+            fetched_at TIMESTAMP NOT NULL
+        )
+    ''')
+
     # Migrations for existing deployments
     for col in ['name_he', 'purchase_time']:
         cur.execute("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS {} TEXT".format(col))
     cur.execute("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)")
     cur.execute("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS pool_id INTEGER REFERENCES pools(id)")
+    cur.execute("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS rate_at_entry NUMERIC")
     cur.execute("ALTER TABLE standing_orders ADD COLUMN IF NOT EXISTS name_he TEXT")
     cur.execute("ALTER TABLE standing_orders ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)")
     cur.execute("ALTER TABLE budgets ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)")
@@ -478,6 +490,76 @@ def leave_pool(pool_id):
 # ============================================================
 # EXPENSES
 # ============================================================
+# Supported coins: symbol → CoinGecko ID
+CRYPTO_COINS = {'BTC': 'bitcoin', 'ETH': 'ethereum'}
+
+COINGECKO_URL = (
+    'https://api.coingecko.com/api/v3/simple/price'
+    '?ids=bitcoin,ethereum&vs_currencies=ils,usd'
+)
+
+
+@app.route('/crypto-prices', methods=['GET'])
+@require_auth
+def get_crypto_prices():
+    conn = get_db()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        # Return cached prices if all coins are fresher than 3 days
+        cur.execute(
+            "SELECT coin, price_ils, price_usd, fetched_at FROM crypto_prices "
+            "WHERE fetched_at > NOW() - INTERVAL '3 days'"
+        )
+        cached = {r['coin']: r for r in cur.fetchall()}
+
+        if all(sym in cached for sym in CRYPTO_COINS):
+            return jsonify({
+                sym: {
+                    'ils':        float(cached[sym]['price_ils']),
+                    'usd':        float(cached[sym]['price_usd']),
+                    'fetched_at': cached[sym]['fetched_at'].isoformat(),
+                }
+                for sym in CRYPTO_COINS
+            })
+
+        # Fetch fresh prices from CoinGecko
+        try:
+            req  = urllib.request.Request(COINGECKO_URL, headers={'Accept': 'application/json'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json_lib.loads(resp.read())
+        except Exception:
+            # Fall back to stale cache rather than returning an error
+            if cached:
+                return jsonify({
+                    sym: {'ils': float(cached[sym]['price_ils']), 'usd': float(cached[sym]['price_usd'])}
+                    for sym in CRYPTO_COINS if sym in cached
+                })
+            return jsonify({'error': 'Could not fetch crypto prices'}), 503
+
+        result = {}
+        for sym, coin_id in CRYPTO_COINS.items():
+            if coin_id not in data:
+                continue
+            ils = float(data[coin_id].get('ils', 0))
+            usd = float(data[coin_id].get('usd', 0))
+            cur.execute(
+                """INSERT INTO crypto_prices (coin, price_ils, price_usd, fetched_at)
+                   VALUES (%s, %s, %s, NOW())
+                   ON CONFLICT (coin) DO UPDATE
+                     SET price_ils=EXCLUDED.price_ils,
+                         price_usd=EXCLUDED.price_usd,
+                         fetched_at=EXCLUDED.fetched_at""",
+                (sym, ils, usd)
+            )
+            result[sym] = {'ils': ils, 'usd': usd, 'fetched_at': datetime.now(timezone.utc).isoformat()}
+
+        conn.commit()
+        return jsonify(result)
+    finally:
+        cur.close()
+        conn.close()
+
+
 @app.route('/expenses', methods=['GET', 'POST'])
 @require_auth
 def expenses_route():
@@ -521,6 +603,8 @@ def expenses_route():
             e = dict(row)
             e['date']   = e['date'].isoformat()
             e['amount'] = float(e['amount'])
+            if e.get('rate_at_entry') is not None:
+                e['rate_at_entry'] = float(e['rate_at_entry'])
             rows.append(e)
         cur.close(); conn.close()
         return jsonify(rows)
@@ -530,16 +614,21 @@ def expenses_route():
     if pool_id and not is_pool_member(cur, pool_id, g.user_id):
         return jsonify({'error': 'Not a member of this pool'}), 403
 
+    rate_at_entry = data.get('rate_at_entry')  # ILS per coin, only for crypto
+
     cur.execute(
-        '''INSERT INTO expenses (name,name_he,amount,category,date,purchase_time,currency,user_id,pool_id)
-           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *''',
+        '''INSERT INTO expenses
+             (name,name_he,amount,category,date,purchase_time,currency,user_id,pool_id,rate_at_entry)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *''',
         (data['name'], data.get('name_he'), data['amount'], data['category'],
          data.get('date', date.today().isoformat()), data.get('purchase_time'),
-         data.get('currency','ILS'), g.user_id, pool_id)
+         data.get('currency','ILS'), g.user_id, pool_id, rate_at_entry)
     )
     expense = dict(cur.fetchone())
     expense['date']   = expense['date'].isoformat()
     expense['amount'] = float(expense['amount'])
+    if expense.get('rate_at_entry') is not None:
+        expense['rate_at_entry'] = float(expense['rate_at_entry'])
     conn.commit(); cur.close(); conn.close()
     return jsonify(expense), 201
 

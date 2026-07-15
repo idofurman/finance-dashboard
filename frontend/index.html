@@ -225,7 +225,10 @@
                 <button type="button" class="currency-pill" data-currency="ILS">₪ ILS</button>
                 <button type="button" class="currency-pill" data-currency="USD">$ USD</button>
                 <button type="button" class="currency-pill" data-currency="EUR">€ EUR</button>
+                <button type="button" class="currency-pill" data-currency="BTC">₿ BTC</button>
+                <button type="button" class="currency-pill" data-currency="ETH">Ξ ETH</button>
             </div>
+            <div id="cryptoPriceHint" class="crypto-price-hint" style="display:none"></div>
             <p class="input-label" id="labelDate">Day of Purchase</p>
             <input class="input" type="date" id="expenseDate">
             <p class="input-label" id="labelTime">Time (optional)</p>
@@ -328,13 +331,21 @@ const CATEGORIES = [
     { key: 'other',         icon: '💰', en: 'Other',         he: 'אחר'      },
 ];
 
-const CURRENCY_SYMBOLS = { ILS: '₪', USD: '$', EUR: '€' };
+const CURRENCY_SYMBOLS = { ILS: '₪', USD: '$', EUR: '€', BTC: '₿', ETH: 'Ξ' };
 const RATES_TO_ILS    = { ILS: 1, USD: 3.7, EUR: 4.0 };
+const CRYPTO_SYMBOLS  = new Set(['BTC', 'ETH']);
 
-function convertAmount(amount, fromCurrency, toCurrency) {
+// rateAtEntry: ILS per coin at the time the expense was saved (crypto only)
+// For display currency, always uses current live rate.
+function convertAmount(amount, fromCurrency, toCurrency, rateAtEntry) {
     if (!fromCurrency || fromCurrency === toCurrency) return amount;
-    const inILS = amount * (RATES_TO_ILS[fromCurrency] || 1);
-    return inILS / (RATES_TO_ILS[toCurrency] || 1);
+    const fromRate = CRYPTO_SYMBOLS.has(fromCurrency)
+        ? (rateAtEntry ?? state.cryptoRates[fromCurrency] ?? 0)
+        : (RATES_TO_ILS[fromCurrency] ?? 1);
+    const toRate = CRYPTO_SYMBOLS.has(toCurrency)
+        ? (state.cryptoRates[toCurrency] ?? 1)
+        : (RATES_TO_ILS[toCurrency] ?? 1);
+    return (amount * fromRate) / toRate;
 }
 
 const I18N = {
@@ -505,6 +516,8 @@ const state = {
     currentPool:              null,
     invitations:              [],
     selectedInvitePoolId:     null,
+    cryptoRates:              {},   // { BTC: <ILS per coin>, ETH: <ILS per coin> }
+    cryptoFetchedAt:          null, // ISO string of last successful fetch
 };
 
 // ============================================================
@@ -584,9 +597,9 @@ function changeUserName() {
     }
 }
 
-function fmt(amount, fromCurrency = null) {
+function fmt(amount, fromCurrency = null, rateAtEntry = null) {
     const sym = CURRENCY_SYMBOLS[state.currency];
-    const converted = fromCurrency ? convertAmount(amount, fromCurrency, state.currency) : amount;
+    const converted = fromCurrency ? convertAmount(amount, fromCurrency, state.currency, rateAtEntry) : amount;
     return `${sym}${parseFloat(converted).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
@@ -921,7 +934,7 @@ function renderCategoryFilter() {
 
 function renderSummary() {
     const standingTotal = state.standingOrders.reduce((s, o) => s + convertAmount(o.amount, o.currency, state.currency), 0);
-    const expenseTotal  = state.expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+    const expenseTotal  = state.expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency, e.rate_at_entry), 0);
     const total = expenseTotal + (state.filter === 'month' ? standingTotal : 0);
     document.getElementById('totalAmount').textContent = fmt(total);
     const note = document.getElementById('standingNote');
@@ -936,7 +949,7 @@ function renderSummary() {
 function renderChart() {
     const ctx   = document.getElementById('categoryChart').getContext('2d');
     const spend = {};
-    state.expenses.forEach(e => { spend[e.category] = (spend[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency); });
+    state.expenses.forEach(e => { spend[e.category] = (spend[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency, e.rate_at_entry); });
 
     state.standingOrders.forEach(o => { spend[o.category] = (spend[o.category] || 0) + convertAmount(o.amount, o.currency, state.currency); });
 
@@ -990,7 +1003,7 @@ function renderBudgetBars() {
     state.budgets.forEach(b => {
         const cat  = getCat(b.category);
         const spent = state.expenses.filter(e => e.category === b.category)
-            .reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+            .reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency, e.rate_at_entry), 0);
         const displayLimit = convertAmount(b.limit_amount, 'ILS', state.currency);
         const pct  = Math.min((spent / displayLimit) * 100, 100);
         const over = spent > displayLimit;
@@ -1025,7 +1038,7 @@ function renderExpenseList() {
     let expenses = [...state.expenses];
     if (state.filterCategory) expenses = expenses.filter(e => e.category === state.filterCategory);
 
-    const total   = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+    const total   = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency, e.rate_at_entry), 0);
     const totalEl = document.getElementById('categoryTotal');
     if (state.filterCategory && expenses.length > 0) {
         const cat = getCat(state.filterCategory);
@@ -1069,7 +1082,7 @@ function renderExpenseList() {
                 <span class="expense-meta">${expense.date}${expense.purchase_time ? ' ' + expense.purchase_time : ''}${!state.sortByCategory ? ' · ' + catName(expense.category) : ''}</span>
             </div>
             <div class="expense-right">
-                <span class="expense-amount">${fmt(expense.amount, expense.currency)}</span>
+                <span class="expense-amount">${fmt(expense.amount, expense.currency, expense.rate_at_entry)}</span>
                 <button class="btn-delete" onclick="handleDeleteExpense(${expense.id})">×</button>
             </div>
         `;
@@ -1168,7 +1181,7 @@ function renderYearlyView() {
     document.getElementById('yearlyMonthsLabel').textContent = monthsLabel;
 
     // Total
-    const total = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+    const total = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency, e.rate_at_entry), 0);
     document.getElementById('yearlyTotalAmount').textContent = fmt(total);
 
     // Category breakdown
@@ -1181,7 +1194,7 @@ function renderYearlyView() {
 
     const spend = {};
     expenses.forEach(e => {
-        spend[e.category] = (spend[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency);
+        spend[e.category] = (spend[e.category] || 0) + convertAmount(e.amount, e.currency, state.currency, e.rate_at_entry);
     });
 
     Object.entries(spend).sort((a, b) => b[1] - a[1]).forEach(([key, amount]) => {
@@ -1294,7 +1307,7 @@ function updateLanguage() {
 
 function updateStats() {
     const expenses = state.expenses;
-    const total = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency), 0);
+    const total = expenses.reduce((s, e) => s + convertAmount(e.amount, e.currency, state.currency, e.rate_at_entry), 0);
     const daysInMonth = new Date(state.currentMonth.slice(0,4), state.currentMonth.slice(5,7), 0).getDate();
     const avg = total / daysInMonth;
     const avgLabel = t('labelStatAvg');
@@ -1380,7 +1393,11 @@ async function handleAddExpense() {
     const purchaseTime = document.getElementById('purchaseTime').value || null;
 
     submitBtn.disabled = false;
-    await addExpense({ name, name_he: nameHe || null, amount, category, date, purchase_time: purchaseTime, currency: state.expenseInputCurrency });
+    const expenseData = { name, name_he: nameHe || null, amount, category, date, purchase_time: purchaseTime, currency: state.expenseInputCurrency };
+    if (CRYPTO_SYMBOLS.has(state.expenseInputCurrency)) {
+        expenseData.rate_at_entry = state.cryptoRates[state.expenseInputCurrency] ?? null;
+    }
+    await addExpense(expenseData);
     document.getElementById('expenseName').value    = '';
     document.getElementById('expenseNameHe').value  = '';
     document.getElementById('expenseAmount').value  = '';
@@ -1576,6 +1593,7 @@ function syncExpenseCurrencyPills(currency) {
     document.querySelectorAll('.currency-pill').forEach(b => {
         b.classList.toggle('active', b.dataset.currency === currency);
     });
+    updateCryptoPriceHint();
 }
 
 function openAddExpenseModal() {
@@ -1730,6 +1748,31 @@ document.getElementById('submitInvite').addEventListener('click', handleSendInvi
 // ============================================================
 // INIT
 // ============================================================
+async function fetchCryptoPrices() {
+    try {
+        const res = await fetch(`${API_URL}/crypto-prices`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const [coin, info] of Object.entries(data)) {
+            state.cryptoRates[coin] = info.ils;
+        }
+        state.cryptoFetchedAt = data.BTC?.fetched_at ?? null;
+        updateCryptoPriceHint();
+    } catch { /* non-critical — crypto prices are optional */ }
+}
+
+function updateCryptoPriceHint() {
+    const hint = document.getElementById('cryptoPriceHint');
+    if (!hint) return;
+    const cur = state.expenseInputCurrency;
+    if (!CRYPTO_SYMBOLS.has(cur)) { hint.style.display = 'none'; return; }
+    const rate = state.cryptoRates[cur];
+    if (!rate) { hint.style.display = 'none'; return; }
+    const sym = CURRENCY_SYMBOLS[cur];
+    hint.textContent = `1 ${sym}${cur} ≈ ₪${rate.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    hint.style.display = 'block';
+}
+
 async function init() {
     if (!getToken()) {
         window.location.href = '/';
@@ -1745,6 +1788,7 @@ async function init() {
 
     try {
         await loadUser();
+        fetchCryptoPrices(); // fire-and-forget — doesn't block app load
         await Promise.all([fetchExpenses(), fetchBudgets(), fetchStandingOrders()]);
         renderAll();
         ensureTranslations();
