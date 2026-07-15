@@ -39,6 +39,9 @@
     <div class="bg-shape bg-shape-23"></div>
     <div class="bg-shape bg-shape-24"></div>
     <div class="bg-shape bg-shape-25"></div>
+    <div class="bg-shape bg-shape-26"></div>
+    <div class="bg-shape bg-shape-27"></div>
+    <div class="bg-shape bg-shape-28"></div>
 </div>
 <div class="app">
 
@@ -69,7 +72,10 @@
     <div class="month-bar">
         <span class="month-bar-label" id="monthBarLabel">📅 View month:</span>
         <button class="btn-icon" id="prevMonth">‹</button>
-        <input type="month" id="monthPicker" class="month-picker-input">
+        <span class="month-picker-wrap">
+            <span id="monthDisplay" class="month-display-label"></span>
+            <input type="month" id="monthPicker" class="month-picker-input">
+        </span>
         <button class="btn-icon" id="nextMonth">›</button>
     </div>
 
@@ -1212,6 +1218,7 @@ function updateLanguage() {
     document.getElementById('sortToggle').textContent    = state.sortByCategory ? t('unsortBtn') : t('sortBtn');
     document.getElementById('downloadBtn').textContent   = t('downloadBtn');
     document.getElementById('monthPicker').value = state.currentMonth;
+    document.getElementById('monthDisplay').textContent = monthLabel();
     document.getElementById('monthBarLabel').textContent = t('monthBarLabel');
     document.getElementById('openAddModal2').textContent  = t('newExpenseBtn');
     document.getElementById('openBudgetModal').textContent  = t('budgetsBtn');
@@ -1240,6 +1247,7 @@ function updateStats() {
 
 function renderAll() {
     document.getElementById('monthPicker').value = state.currentMonth;
+    document.getElementById('monthDisplay').textContent = monthLabel();
     document.getElementById('filterBar').style.display  = isCurrentMonth() ? 'flex' : 'none';
     renderSummary();
     renderChart();

@@ -1156,24 +1156,47 @@ body {
 /* ============================================================
    MONTH PICKER INPUT
    ============================================================ */
+.month-picker-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+}
+
+.month-picker-wrap:hover { background: rgba(79,70,229,0.08); }
+
+.month-display-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
 .month-picker-input {
     border: none;
     background: transparent;
     font-size: 1.05rem;
     font-weight: 700;
-    color: var(--text);
+    color: transparent;
     text-align: center;
     cursor: pointer;
     font-family: inherit;
     min-width: 148px;
     padding: 4px 6px;
     border-radius: var(--radius-sm);
-    transition: background 0.15s;
     outline: none;
 }
 
-.month-picker-input:hover { background: rgba(79,70,229,0.08); }
-.month-picker-input:focus { background: var(--primary-light); color: var(--primary); }
+.month-picker-input:focus { outline: none; }
+.month-picker-wrap:focus-within { background: var(--primary-light); }
+.month-picker-wrap:focus-within .month-display-label { color: var(--primary); }
 
 /* hide the native calendar icon in webkit */
 .month-picker-input::-webkit-calendar-picker-indicator {
@@ -1599,4 +1622,30 @@ body {
     left: 35%;
     background: transparent;
     border: 2px solid rgba(129, 140, 248, 0.14);
+}
+
+/* --- Center fill --- */
+.bg-shape-26 {
+    width: 130px;
+    height: 130px;
+    top: 36%;
+    left: 47%;
+    background: rgba(79, 70, 229, 0.13);
+}
+
+.bg-shape-27 {
+    width: 85px;
+    height: 85px;
+    top: 51%;
+    left: 54%;
+    background: rgba(129, 140, 248, 0.14);
+}
+
+.bg-shape-28 {
+    width: 150px;
+    height: 150px;
+    top: 43%;
+    left: 38%;
+    background: transparent;
+    border: 2px dashed rgba(99, 102, 241, 0.13);
 }
