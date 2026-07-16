@@ -311,6 +311,15 @@
 
 <script>
 // ============================================================
+// SECURITY — escape user-controlled strings before innerHTML
+// ============================================================
+function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str ?? '';
+    return d.innerHTML;
+}
+
+// ============================================================
 // CONFIGURATION
 // ============================================================
 const API_URL = '';
@@ -703,8 +712,8 @@ function renderPoolsModal() {
             row.className = 'expense-item';
             row.innerHTML = `
                 <div class="expense-details">
-                    <span class="expense-name">${inv.pool_name}</span>
-                    <span class="expense-meta">invited by ${inv.invited_by_username}</span>
+                    <span class="expense-name">${esc(inv.pool_name)}</span>
+                    <span class="expense-meta">invited by ${esc(inv.invited_by_username)}</span>
                 </div>
                 <div class="expense-right" style="gap:6px">
                     <button class="btn-sm" onclick="handleAcceptInvite(${inv.pool_id})">✓ Join</button>
@@ -729,8 +738,8 @@ function renderPoolsModal() {
             const isOwner = p.role === 'owner';
             row.innerHTML = `
                 <div class="expense-details">
-                    <span class="expense-name">👥 ${p.name}</span>
-                    <span class="expense-meta">${p.role}</span>
+                    <span class="expense-name">👥 ${esc(p.name)}</span>
+                    <span class="expense-meta">${esc(p.role)}</span>
                 </div>
                 <div class="expense-right" style="gap:6px">
                     ${isOwner ? `<button class="btn-sm" onclick="openInviteSection(${p.id}, '${p.name.replace(/'/g,"\\'")}')">+ Invite</button>` : ''}
@@ -1074,7 +1083,7 @@ function renderExpenseList() {
         item.innerHTML = `
             <div class="expense-icon">${cat.icon}</div>
             <div class="expense-details">
-                <span class="expense-name" dir="auto">${displayName}</span>
+                <span class="expense-name" dir="auto">${esc(displayName)}</span>
                 <span class="expense-meta">${expense.date}${expense.purchase_time ? ' ' + expense.purchase_time : ''}${!state.sortByCategory ? ' · <span class="cat-meta-tag"><span class="cat-meta-icon">' + cat.icon + '</span> ' + catName(expense.category) + '</span>' : ''}</span>
             </div>
             <div class="expense-right">
@@ -1105,7 +1114,7 @@ function renderStandingOrders() {
             item.innerHTML = `
                 <div class="expense-icon">🔄</div>
                 <div class="expense-details">
-                    <span class="expense-name" dir="auto">${displayName}</span>
+                    <span class="expense-name" dir="auto">${esc(displayName)}</span>
                     <span class="expense-meta">${cat.icon} ${catName(order.category)}</span>
                 </div>
                 <div class="expense-right">
@@ -1129,7 +1138,7 @@ function renderStandingOrders() {
         item.innerHTML = `
             <div class="expense-icon">🔄</div>
             <div class="expense-details">
-                <span class="expense-name" dir="auto">${displayName}</span>
+                <span class="expense-name" dir="auto">${esc(displayName)}</span>
                 <span class="expense-meta">${cat.icon} ${catName(order.category)} · ${fmt(order.amount, order.currency)}</span>
             </div>
             <div class="expense-right">

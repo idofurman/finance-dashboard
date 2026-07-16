@@ -1,5 +1,7 @@
-from flask import Flask, jsonify, request, g, send_from_directory
+from flask import Flask, jsonify, request, g, send_from_directory, abort
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from prometheus_flask_exporter import PrometheusMetrics
 import psycopg2
 import psycopg2.extras
@@ -17,6 +19,15 @@ ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', '*').split(',')
 CORS(app, resources={r'/*': {'origins': ALLOWED_ORIGINS, 'allow_headers': ['Content-Type', 'Authorization']}})
 
 PrometheusMetrics(app)
+
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
+
+@app.before_request
+def protect_metrics():
+    if request.path == '/metrics':
+        remote = request.remote_addr or ''
+        if not (remote.startswith('127.') or remote.startswith('10.') or remote.startswith('172.')):
+            abort(404)
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 JWT_SECRET   = os.environ.get('JWT_SECRET')
@@ -151,7 +162,7 @@ def check_password(password, hashed):
 def create_token(user_id):
     payload = {
         'user_id': user_id,
-        'exp': datetime.now(timezone.utc) + timedelta(days=30)
+        'exp': datetime.now(timezone.utc) + timedelta(days=7)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
 
@@ -219,6 +230,7 @@ def register():
 
 
 @app.route('/auth/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def login():
     data     = request.get_json()
     email    = (data.get('email') or '').strip().lower()

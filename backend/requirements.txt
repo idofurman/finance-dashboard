@@ -5,3 +5,4 @@ anthropic>=0.40.0
 prometheus-flask-exporter==0.23.1
 PyJWT==2.8.0
 bcrypt==4.1.2
+flask-limiter==3.5.0
