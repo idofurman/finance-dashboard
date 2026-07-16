@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, g, send_from_directory, abort
+from flask import Flask, jsonify, request, g, abort, Blueprint
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -14,6 +14,7 @@ from datetime import date, timedelta, datetime, timezone
 from functools import wraps
 
 app = Flask(__name__)
+api = Blueprint('api', __name__, url_prefix='/api')
 
 ALLOWED_ORIGINS = os.environ.get('ALLOWED_ORIGINS', '*').split(',')
 CORS(app, resources={r'/*': {'origins': ALLOWED_ORIGINS, 'allow_headers': ['Content-Type', 'Authorization']}})
@@ -199,7 +200,7 @@ def is_pool_member(cur, pool_id, user_id):
 # ============================================================
 # AUTH ROUTES
 # ============================================================
-@app.route('/auth/register', methods=['POST'])
+@api.route('/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
     username = (data.get('username') or '').strip()
@@ -229,7 +230,7 @@ def register():
         conn.close()
 
 
-@app.route('/auth/login', methods=['POST'])
+@api.route('/auth/login', methods=['POST'])
 @limiter.limit("10 per minute")
 def login():
     data     = request.get_json()
@@ -254,7 +255,7 @@ def login():
         conn.close()
 
 
-@app.route('/auth/me', methods=['GET'])
+@api.route('/auth/me', methods=['GET'])
 @require_auth
 def me():
     conn = get_db()
@@ -291,7 +292,7 @@ def me():
 # ============================================================
 # POOL ROUTES
 # ============================================================
-@app.route('/pools', methods=['GET', 'POST'])
+@api.route('/pools', methods=['GET', 'POST'])
 @require_auth
 def pools_route():
     conn = get_db()
@@ -328,7 +329,7 @@ def pools_route():
         conn.close()
 
 
-@app.route('/pools/<int:pool_id>/members', methods=['GET'])
+@api.route('/pools/<int:pool_id>/members', methods=['GET'])
 @require_auth
 def pool_members(pool_id):
     conn = get_db()
@@ -349,7 +350,7 @@ def pool_members(pool_id):
         conn.close()
 
 
-@app.route('/pools/<int:pool_id>/invite', methods=['POST'])
+@api.route('/pools/<int:pool_id>/invite', methods=['POST'])
 @require_auth
 def invite_to_pool(pool_id):
     conn = get_db()
@@ -392,7 +393,7 @@ def invite_to_pool(pool_id):
         conn.close()
 
 
-@app.route('/pools/invitations', methods=['GET'])
+@api.route('/pools/invitations', methods=['GET'])
 @require_auth
 def my_invitations():
     conn = get_db()
@@ -411,7 +412,7 @@ def my_invitations():
         conn.close()
 
 
-@app.route('/pools/<int:pool_id>/accept', methods=['POST'])
+@api.route('/pools/<int:pool_id>/accept', methods=['POST'])
 @require_auth
 def accept_invitation(pool_id):
     conn = get_db()
@@ -430,7 +431,7 @@ def accept_invitation(pool_id):
         conn.close()
 
 
-@app.route('/pools/<int:pool_id>/decline', methods=['DELETE'])
+@api.route('/pools/<int:pool_id>/decline', methods=['DELETE'])
 @require_auth
 def decline_invitation(pool_id):
     conn = get_db()
@@ -449,7 +450,7 @@ def decline_invitation(pool_id):
         conn.close()
 
 
-@app.route('/pools/<int:pool_id>', methods=['DELETE'])
+@api.route('/pools/<int:pool_id>', methods=['DELETE'])
 @require_auth
 def delete_pool(pool_id):
     conn = get_db()
@@ -473,7 +474,7 @@ def delete_pool(pool_id):
         conn.close()
 
 
-@app.route('/pools/<int:pool_id>/leave', methods=['DELETE'])
+@api.route('/pools/<int:pool_id>/leave', methods=['DELETE'])
 @require_auth
 def leave_pool(pool_id):
     conn = get_db()
@@ -500,22 +501,19 @@ def leave_pool(pool_id):
 
 
 # ============================================================
-# EXCHANGE RATES  (USD, EUR → ILS, refreshed every 3 days)
+# EXCHANGE RATES  (USD, EUR -> ILS, refreshed every 3 days)
 # ============================================================
 FIAT_CURRENCIES = ['USD', 'EUR']
 
-# Frankfurter is a free, no-key public API maintained by the ECB
-# Returns how many of each currency you get per 1 ILS
 FRANKFURTER_URL = 'https://api.frankfurter.app/latest?from=ILS&to=USD,EUR'
 
 
-@app.route('/exchange-rates', methods=['GET'])
+@api.route('/exchange-rates', methods=['GET'])
 @require_auth
 def get_exchange_rates():
     conn = get_db()
     cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
-        # Return cache if all currencies are fresher than 3 days
         cur.execute(
             "SELECT currency, rate_to_ils, fetched_at FROM exchange_rates "
             "WHERE fetched_at > NOW() - INTERVAL '3 days'"
@@ -531,9 +529,6 @@ def get_exchange_rates():
                 for c in FIAT_CURRENCIES
             })
 
-        # Fetch live rates from Frankfurter (ECB data, free, no key)
-        # Response: { "rates": { "USD": 0.271, "EUR": 0.246 } }
-        # meaning 1 ILS = 0.271 USD  →  1 USD = 1/0.271 ≈ 3.69 ILS
         try:
             req = urllib.request.Request(FRANKFURTER_URL, headers={'Accept': 'application/json'})
             with urllib.request.urlopen(req, timeout=10) as resp:
@@ -573,7 +568,7 @@ def get_exchange_rates():
         conn.close()
 
 
-@app.route('/expenses', methods=['GET', 'POST'])
+@api.route('/expenses', methods=['GET', 'POST'])
 @require_auth
 def expenses_route():
     conn = get_db()
@@ -627,7 +622,7 @@ def expenses_route():
     if pool_id and not is_pool_member(cur, pool_id, g.user_id):
         return jsonify({'error': 'Not a member of this pool'}), 403
 
-    rate_at_entry = data.get('rate_at_entry')  # ILS per unit of currency at time of entry
+    rate_at_entry = data.get('rate_at_entry')
 
     cur.execute(
         '''INSERT INTO expenses
@@ -646,7 +641,7 @@ def expenses_route():
     return jsonify(expense), 201
 
 
-@app.route('/expenses/<int:expense_id>', methods=['DELETE', 'PATCH'])
+@api.route('/expenses/<int:expense_id>', methods=['DELETE', 'PATCH'])
 @require_auth
 def modify_expense(expense_id):
     conn = get_db()
@@ -685,7 +680,7 @@ def modify_expense(expense_id):
 # ============================================================
 # BUDGETS
 # ============================================================
-@app.route('/budgets', methods=['GET', 'POST'])
+@api.route('/budgets', methods=['GET', 'POST'])
 @require_auth
 def budgets_route():
     conn = get_db()
@@ -739,7 +734,7 @@ def budgets_route():
 # ============================================================
 # STANDING ORDERS (personal only)
 # ============================================================
-@app.route('/standing-orders', methods=['GET', 'POST'])
+@api.route('/standing-orders', methods=['GET', 'POST'])
 @require_auth
 def standing_orders_route():
     conn = get_db()
@@ -763,7 +758,7 @@ def standing_orders_route():
     return jsonify(order), 201
 
 
-@app.route('/standing-orders/<int:order_id>', methods=['DELETE', 'PATCH'])
+@api.route('/standing-orders/<int:order_id>', methods=['DELETE', 'PATCH'])
 @require_auth
 def modify_standing_order(order_id):
     conn = get_db()
@@ -801,7 +796,7 @@ def modify_standing_order(order_id):
 # ============================================================
 # RECEIPT SCANNER
 # ============================================================
-@app.route('/parse-receipt', methods=['POST'])
+@api.route('/parse-receipt', methods=['POST'])
 @require_auth
 def parse_receipt():
     import anthropic as _anthropic
@@ -847,31 +842,14 @@ def parse_receipt():
 
 
 # ============================================================
-# FRONTEND — Flask serves the HTML files so family members
-# can open the app at the server URL without local files
-# ============================================================
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), 'frontend')
-
-@app.route('/')
-def serve_login():
-    return send_from_directory(FRONTEND_DIR, 'login.html')
-
-@app.route('/app')
-def serve_app():
-    return send_from_directory(FRONTEND_DIR, 'index.html')
-
-@app.route('/frontend/<path:filename>')
-def serve_static(filename):
-    return send_from_directory(FRONTEND_DIR, filename)
-
-
-# ============================================================
 # HEALTH
 # ============================================================
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'ok'})
 
+
+app.register_blueprint(api)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
