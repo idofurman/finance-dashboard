@@ -175,6 +175,41 @@ A real family expense tracking app that Ido and his parents will actually use da
 
 ---
 
+### ✅ Teacher Missions — Production Hardening (IN PROGRESS — session 2026-07-16)
+
+**Goal:** Bring project to production level across 7 missions
+
+| # | Mission | Status |
+|---|---|---|
+| 1 | Composite actions in workflow | Done |
+| 2 | Multistage Dockerfile | Done |
+| 3 | Separate frontend and backend | Done |
+| 4 | PodDisruptionBudget (PDB) | Done |
+| 5 | HorizontalPodAutoscaler (HPA) | Done |
+| 6 | External Secrets (ESO + AWS Secrets Manager) | Remaining |
+| 7 | Terraform: EKS + modules + split files | Remaining |
+
+**What was done:**
+- `.github/actions/aws-ecr-login/action.yml` — composite action, replaces duplicated AWS/ECR login steps in workflow
+- `backend/Dockerfile` — multistage build: builder stage installs deps into /venv, runtime stage copies only the venv
+- `backend/app.py` — all API routes moved to Blueprint with url_prefix='/api', frontend-serving routes removed
+- `frontend/index.html` + `login.html` — API_URL changed from '' to '/api'
+- `frontend/Dockerfile` + `frontend/nginx.conf` — nginx container serving static files
+- `finance-chart/templates/frontend-deployment.yml` + `frontend-service.yml` — new frontend K8s resources
+- `finance-chart/templates/ingress.yml` — split: /api -> backend:5000, / -> frontend:80
+- `finance-chart/templates/backend-pdb.yml` + `frontend-pdb.yml` — minAvailable: 1
+- `finance-chart/templates/backend-hpa.yml` + `frontend-hpa.yml` — scale 2-5 replicas, CPU 70% / memory 80%
+- `finance-chart/values.yaml` — added frontend image section, removed hardcoded replicas
+- `.github/workflows/deploy.yml` — builds both backend and frontend images, passes both image tags to ArgoCD
+- ECR repo `finance-frontend` created in AWS (579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-frontend)
+- All changes committed: e581568
+
+**Remaining work:**
+- Mission 6: Install External Secrets Operator, store secrets in AWS Secrets Manager, create SecretStore + ExternalSecret manifests
+- Mission 7: Rewrite Terraform — split into versions.tf/networking.tf/eks.tf/ecr.tf/iam.tf/budget.tf, use modules, migrate from EC2+k3s to EKS
+
+---
+
 ### 🔄 Week 4 — Auth + Security + ArgoCD + Polish (MOSTLY DONE)
 
 **Goal:** Production-ready app with auth, HTTPS, GitOps, observability, and demo-ready
