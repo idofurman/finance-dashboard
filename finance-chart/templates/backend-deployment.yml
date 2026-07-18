@@ -5,16 +5,16 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: backend  
-    
+      app: backend
+
   template:
     metadata:
-      labels:    
+      labels:
         app: backend
     spec:
       containers:
         - name: backend
-          image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }} 
+          image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
           imagePullPolicy: Always
           ports:
             - containerPort: {{ .Values.backend.port }}
@@ -25,6 +25,20 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.backend.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.backend.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
           env:
             - name: DATABASE_URL
               valueFrom:

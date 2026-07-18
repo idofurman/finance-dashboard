@@ -5,6 +5,8 @@ from flask_limiter.util import get_remote_address
 from prometheus_flask_exporter import PrometheusMetrics
 import psycopg2
 import psycopg2.extras
+from psycopg2 import pool as _pg_pool
+import threading
 import os
 import jwt
 import bcrypt
@@ -37,15 +39,27 @@ if not JWT_SECRET:
 
 
 # ============================================================
-# DB
+# DB — connection pool (avoids opening a new connection per request)
 # ============================================================
+_db_pool = None
+_db_pool_lock = threading.Lock()
+
+def get_pool():
+    global _db_pool
+    if _db_pool is None:
+        with _db_pool_lock:
+            if _db_pool is None:
+                _db_pool = _pg_pool.ThreadedConnectionPool(2, 20, DATABASE_URL)
+    return _db_pool
+
 def get_db():
-    return psycopg2.connect(DATABASE_URL)
+    return get_pool().getconn()
 
 
 def init_db():
     conn = get_db()
     cur  = conn.cursor()
+    cur.execute("SELECT pg_advisory_xact_lock(1)")  # prevents concurrent migration races on multi-pod startup
 
     cur.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -140,7 +154,7 @@ def init_db():
 
     conn.commit()
     cur.close()
-    conn.close()
+    get_pool().putconn(conn)
 
 
 try:
@@ -227,7 +241,7 @@ def register():
         return jsonify({'error': 'Username or email already exists'}), 409
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/auth/login', methods=['POST'])
@@ -252,7 +266,7 @@ def login():
         return jsonify({'token': create_token(user['id']), 'user': user})
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/auth/me', methods=['GET'])
@@ -286,7 +300,7 @@ def me():
         return jsonify(user)
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 # ============================================================
@@ -326,7 +340,7 @@ def pools_route():
         return jsonify(pool), 201
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/pools/<int:pool_id>/members', methods=['GET'])
@@ -347,7 +361,7 @@ def pool_members(pool_id):
         return jsonify([dict(r) for r in cur.fetchall()])
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/pools/<int:pool_id>/invite', methods=['POST'])
@@ -390,7 +404,7 @@ def invite_to_pool(pool_id):
         return jsonify({'message': f"Invitation sent to {target['username']}"}), 201
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/pools/invitations', methods=['GET'])
@@ -409,7 +423,7 @@ def my_invitations():
         return jsonify([dict(r) for r in cur.fetchall()])
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/pools/<int:pool_id>/accept', methods=['POST'])
@@ -428,7 +442,7 @@ def accept_invitation(pool_id):
         return jsonify({'message': 'Joined pool successfully'})
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/pools/<int:pool_id>/decline', methods=['DELETE'])
@@ -447,7 +461,7 @@ def decline_invitation(pool_id):
         return jsonify({'message': 'Invitation declined'})
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/pools/<int:pool_id>', methods=['DELETE'])
@@ -471,7 +485,7 @@ def delete_pool(pool_id):
         return jsonify({'message': 'Pool deleted'})
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/pools/<int:pool_id>/leave', methods=['DELETE'])
@@ -497,7 +511,7 @@ def leave_pool(pool_id):
         return jsonify({'message': 'Left pool successfully'})
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 # ============================================================
@@ -565,7 +579,7 @@ def get_exchange_rates():
         return jsonify(result)
     finally:
         cur.close()
-        conn.close()
+        get_pool().putconn(conn)
 
 
 @api.route('/expenses', methods=['GET', 'POST'])
@@ -614,7 +628,7 @@ def expenses_route():
             if e.get('rate_at_entry') is not None:
                 e['rate_at_entry'] = float(e['rate_at_entry'])
             rows.append(e)
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify(rows)
 
     data    = request.get_json()
@@ -637,7 +651,7 @@ def expenses_route():
     expense['amount'] = float(expense['amount'])
     if expense.get('rate_at_entry') is not None:
         expense['rate_at_entry'] = float(expense['rate_at_entry'])
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); get_pool().putconn(conn)
     return jsonify(expense), 201
 
 
@@ -649,15 +663,15 @@ def modify_expense(expense_id):
     cur.execute('SELECT * FROM expenses WHERE id=%s', (expense_id,))
     expense = cur.fetchone()
     if not expense:
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify({'error': 'Not found'}), 404
     if expense['user_id'] != g.user_id:
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify({'error': 'Forbidden'}), 403
 
     if request.method == 'DELETE':
         cur.execute('DELETE FROM expenses WHERE id=%s', (expense_id,))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit(); cur.close(); get_pool().putconn(conn)
         return jsonify({'deleted': expense_id})
 
     data = request.get_json()
@@ -666,14 +680,14 @@ def modify_expense(expense_id):
         if field in data:
             fields.append(f'{field}=%s'); values.append(data[field])
     if not fields:
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify({'error': 'no fields'}), 400
     values.append(expense_id)
     cur.execute(f"UPDATE expenses SET {', '.join(fields)} WHERE id=%s RETURNING *", values)
     row = dict(cur.fetchone())
     row['date']   = row['date'].isoformat()
     row['amount'] = float(row['amount'])
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); get_pool().putconn(conn)
     return jsonify(row)
 
 
@@ -700,7 +714,7 @@ def budgets_route():
         cur.execute(q, p)
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows: r['limit_amount'] = float(r['limit_amount'])
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify(rows)
 
     data    = request.get_json()
@@ -727,7 +741,7 @@ def budgets_route():
         )
     budget = dict(cur.fetchone())
     budget['limit_amount'] = float(budget['limit_amount'])
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); get_pool().putconn(conn)
     return jsonify(budget), 201
 
 
@@ -744,7 +758,7 @@ def standing_orders_route():
         cur.execute('SELECT * FROM standing_orders WHERE user_id=%s ORDER BY id', (g.user_id,))
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows: r['amount'] = float(r['amount'])
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify(rows)
 
     data = request.get_json()
@@ -754,7 +768,7 @@ def standing_orders_route():
     )
     order = dict(cur.fetchone())
     order['amount'] = float(order['amount'])
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); get_pool().putconn(conn)
     return jsonify(order), 201
 
 
@@ -766,15 +780,15 @@ def modify_standing_order(order_id):
     cur.execute('SELECT * FROM standing_orders WHERE id=%s', (order_id,))
     order = cur.fetchone()
     if not order:
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify({'error': 'Not found'}), 404
     if order['user_id'] != g.user_id:
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify({'error': 'Forbidden'}), 403
 
     if request.method == 'DELETE':
         cur.execute('DELETE FROM standing_orders WHERE id=%s', (order_id,))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit(); cur.close(); get_pool().putconn(conn)
         return jsonify({'deleted': order_id})
 
     data = request.get_json()
@@ -783,13 +797,13 @@ def modify_standing_order(order_id):
         if field in data:
             fields.append(f'{field}=%s'); values.append(data[field])
     if not fields:
-        cur.close(); conn.close()
+        cur.close(); get_pool().putconn(conn)
         return jsonify({'error': 'no fields'}), 400
     values.append(order_id)
     cur.execute(f"UPDATE standing_orders SET {', '.join(fields)} WHERE id=%s RETURNING *", values)
     row = dict(cur.fetchone())
     row['amount'] = float(row['amount'])
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); get_pool().putconn(conn)
     return jsonify(row)
 
 
@@ -846,7 +860,15 @@ def parse_receipt():
 # ============================================================
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'ok'})
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute('SELECT 1')
+        cur.close()
+        get_pool().putconn(conn)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'detail': str(e)}), 500
 
 
 app.register_blueprint(api)

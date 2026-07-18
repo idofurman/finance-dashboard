@@ -38,6 +38,7 @@ resource "helm_release" "monitoring" {
   set {
     name  = "grafana.ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/ssl-redirect"
     value = "true"
+    type  = "string"
   }
 
   set {

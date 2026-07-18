@@ -22,8 +22,11 @@ module "ecr" {
   tags = local.tags
 }
 
-# DNS module requires route53:CreateHostedZone permission on the CI user.
-# Uncomment once that permission is added to the CI IAM user.
+# DNS: the allexpense.me hosted zone and A record were created manually in Route53.
+# To bring DNS under Terraform management:
+#   1. Add route53:ChangeResourceRecordSets + route53:CreateHostedZone to the CI IAM user
+#   2. Import the existing hosted zone: terraform import module.dns.aws_route53_zone.this <ZONE_ID>
+#   3. Uncomment the module below
 # module "dns" {
 #   source                 = "./modules/dns"
 #   domain                 = "allexpense.me"
