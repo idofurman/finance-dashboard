@@ -17,3 +17,8 @@ output "oidc_provider_arn" {
   description = "ARN of the OIDC provider — used for IAM Roles for Service Accounts (IRSA)"
   value       = module.eks.oidc_provider_arn
 }
+
+output "cluster_oidc_issuer_url" {
+  description = "OIDC issuer URL of the cluster — used to build IRSA trust policies"
+  value       = module.eks.cluster_oidc_issuer_url
+}
