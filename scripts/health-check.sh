@@ -25,7 +25,9 @@ echo "========================================="
 
 echo ""
 echo "--- App ---"
-check "Flask app responding" "curl -sf $APP_URL/health"
+check "Frontend reachable (HTTPS)"  "curl -sf $APP_URL/"
+check "Backend health (DB check)"   "kubectl exec deployment/backend -- python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""
+check "API responding (auth check)" "curl -sf -o /dev/null -w '%{http_code}' -X POST $APP_URL/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"x\",\"password\":\"y\"}' | grep -q 401"
 
 echo ""
 echo "--- Kubernetes Pods ---"
