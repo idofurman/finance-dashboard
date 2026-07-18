@@ -12,6 +12,7 @@ frontend:
 
 db:
   image: postgres:16
-  storage: 1Gi     
+  storage: 1Gi
+  storageClass: gp2
 
   

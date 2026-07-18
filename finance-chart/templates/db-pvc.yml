@@ -8,4 +8,4 @@ spec:
   resources:
     requests:
       storage: {{ .Values.db.storage }}
-  storageClassName: local-path
+  storageClassName: {{ .Values.db.storageClass }}
