@@ -95,11 +95,11 @@ One `git push` to `main` triggers the full pipeline:
 ```
 git push
   -> 1. pytest — Flask API tests
-  -> 2. Docker build (multistage), push to ECR with git SHA tag (immutable)
-  -> 3. Trivy security scan — blocks on CRITICAL unfixed CVEs
+  -> 2. Docker build (multistage), push both images to ECR with git SHA tag (immutable)
+  -> 3. Trivy security scan — scans backend AND frontend, blocks on CRITICAL unfixed CVEs
   -> 4. kubectl patch ArgoCD application with new image tags
   -> 5. ArgoCD syncs Helm chart to EKS
-  -> 6. kubectl rollout status waits for all pods to be healthy
+  -> 6. kubectl rollout status -n default waits for all pods to be healthy
 ```
 
 ECR authentication on the cluster is handled automatically by the EKS node IAM role — no credentials to rotate.
@@ -137,13 +137,13 @@ finance-dashboard/
 ├── backend/
 │   ├── app.py               — Flask API (expenses, auth, pools, receipt scan)
 │   ├── Dockerfile           — multistage: builder installs deps, runtime copies venv
-│   ├── test_app.py          — pytest tests
+│   ├── test_app.py          — pytest tests (mock get_db + get_pool for CI)
 │   └── requirements.txt
 ├── frontend/
 │   ├── index.html           — Main app (dashboard, expenses, budgets, trends)
 │   ├── login.html           — Auth page
-│   ├── Dockerfile           — nginx serving static files
-│   └── nginx.conf
+│   ├── Dockerfile           — nginx:1.27-alpine + apk upgrade to patch base CVEs
+│   └── nginx.conf           — gzip, server_tokens off, security headers, cache-control
 ├── finance-chart/           — Helm chart
 │   ├── values.yaml          — image repos, storage class, ports
 │   └── templates/
@@ -209,9 +209,16 @@ kubectl apply -f argocd/application.yml
 - External Secrets Operator syncs secrets to the cluster using IRSA (no static AWS keys)
 - Git history scrubbed with `git-filter-repo` after API key incident
 - ECR immutable image tags — deployed image is exactly what was tested
-- Trivy scan blocks deploys on CRITICAL unfixed CVEs
+- Trivy scans both backend and frontend images, blocks deploys on CRITICAL unfixed CVEs
+- `apk upgrade` in frontend Dockerfile patches base image CVEs at every build
 - CORS restricted to `https://allexpense.me`
 - Branch protection on `main` — PRs required, tests must pass
+- EKS control plane audit logging enabled (api, audit, authenticator → CloudWatch, 30-day retention)
+- EKS private endpoint access enabled — in-cluster traffic stays within VPC
+- nginx security headers on all responses: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`
+- Liveness and readiness probes on all pods — unhealthy pods are restarted and removed from traffic
+- PostgreSQL connection pool (2–20 connections) — prevents connection exhaustion under load
+- `/health` endpoint verifies live DB connectivity — Kubernetes probes catch real failures
 
 ---
 
