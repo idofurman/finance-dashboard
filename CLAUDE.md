@@ -186,7 +186,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 | 3 | Separate frontend and backend | Done |
 | 4 | PodDisruptionBudget (PDB) | Done |
 | 5 | HorizontalPodAutoscaler (HPA) | Done |
-| 6 | External Secrets (ESO + AWS Secrets Manager) | Remaining |
+| 6 | External Secrets (ESO + AWS Secrets Manager) | Done |
 | 7 | Terraform: EKS + modules + split files | Remaining |
 
 **What was done:**
