@@ -3,12 +3,13 @@ backend:
     repository: finance-backend
     tag: latest
   port: 5000
-  nodePort: 30500
+
+frontend:
+  image:
+    repository: finance-frontend
+    tag: latest
 
 db:
   image: postgres:16
   storage: 1Gi
-  credentials:
-    user: CHANGE_ME
-    password: CHANGE_ME
-    database: finance
+  storageClass: gp2
