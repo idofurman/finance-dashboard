@@ -24,34 +24,42 @@ A real app used daily by Ido and his family. Track expenses, set budgets, scan r
 ## Architecture
 
 ```
-                         ┌─────────────────────────────────────────┐
-                         │              GitHub                      │
-                         │   git push → GitHub Actions triggers     │
-                         └────────────────┬────────────────────────┘
-                                          │
-              ┌───────────────────────────▼───────────────────────────┐
-              │                  CI/CD Pipeline                        │
-              │  test → build → ECR push → Trivy scan → ArgoCD patch  │
-              └───────────────────────────┬───────────────────────────┘
-                                          │
-                         ┌────────────────▼────────────────┐
-                         │         AWS EC2 (t3.medium)      │
-                         │         k3s Kubernetes cluster   │
-                         │                                  │
-                         │  ┌─────────┐  ┌──────────────┐  │
-                         │  │ Backend │  │  PostgreSQL   │  │
-                         │  │  Flask  │  │  (PVC)        │  │
-                         │  └─────────┘  └──────────────┘  │
-                         │  ┌──────────────────────────┐    │
-                         │  │  Prometheus + Grafana     │    │
-                         │  │  (monitoring namespace)   │    │
-                         │  └──────────────────────────┘    │
-                         │  ┌──────────────────────────┐    │
-                         │  │  ArgoCD (GitOps sync)    │    │
-                         │  └──────────────────────────┘    │
-                         │  Traefik ingress + TLS (Let's    │
-                         │  Encrypt via cert-manager)        │
-                         └─────────────────────────────────┘
+                         +------------------------------------------+
+                         |              GitHub                       |
+                         |   git push -> GitHub Actions triggers     |
+                         +--------------------+---------------------+
+                                              |
+              +-------------------------------v-----------------------+
+              |                  CI/CD Pipeline                       |
+              |  test -> build -> ECR push -> Trivy scan -> deploy    |
+              +-------------------------------+-----------------------+
+                                              |
+                         +--------------------v--------------------+
+                         |           AWS EKS (finance-eks)         |
+                         |           us-east-1  /  2-3 nodes       |
+                         |                                          |
+                         |  +-----------+   +-----------+           |
+                         |  | Backend   |   | Frontend  |           |
+                         |  | Flask x2  |   | nginx x2  |           |
+                         |  +-----------+   +-----------+           |
+                         |  +-----------------------------------+   |
+                         |  | PostgreSQL (EBS persistent volume)|   |
+                         |  +-----------------------------------+   |
+                         |  +-----------------------------------+   |
+                         |  | ArgoCD  (GitOps sync)             |   |
+                         |  +-----------------------------------+   |
+                         |  +-----------------------------------+   |
+                         |  | Prometheus + Grafana (monitoring) |   |
+                         |  +-----------------------------------+   |
+                         |  ingress-nginx + TLS (cert-manager / |   |
+                         |  Let's Encrypt)                       |   |
+                         +------------------------------------------+
+                                              |
+                         +--------------------v--------------------+
+                         |       AWS Secrets Manager               |
+                         |  DB credentials, JWT secret, API key    |
+                         |  synced to cluster via ESO (IRSA auth)  |
+                         +-----------------------------------------+
 ```
 
 ---
@@ -62,18 +70,21 @@ A real app used daily by Ido and his family. Track expenses, set budgets, scan r
 |---|---|---|
 | Backend | Python / Flask | REST API — expenses, auth, receipt scanning |
 | Frontend | HTML / CSS / JavaScript | Single-page app, Chart.js |
-| Database | PostgreSQL 16 | Persistent storage |
-| Containers | Docker | Packages the app |
-| Orchestration | Kubernetes (k3s) | Runs everything in a cluster on EC2 |
-| Helm | Helm chart | Packages K8s manifests for easy deploy |
-| IaC | Terraform | EC2, ECR, IAM, Elastic IP, S3 state backend |
-| CI/CD | GitHub Actions | test → build → push → security scan → deploy |
-| Registry | AWS ECR | Docker image storage (immutable tags) |
-| GitOps | ArgoCD | Watches Git, syncs new image tags to cluster |
-| Monitoring | Prometheus + Grafana | Metrics scraping and dashboards |
-| HTTPS | cert-manager + Let's Encrypt | Auto-renewing TLS certificate |
+| Database | PostgreSQL 16 | Persistent storage on EBS volume |
+| Containers | Docker (multistage) | Lean production images |
+| Orchestration | Kubernetes (AWS EKS) | Managed cluster, 2-3 t3.medium nodes |
+| Helm | Helm chart | Packages all K8s manifests |
+| IaC | Terraform (modules) | VPC, EKS, ECR, DNS, S3 state backend |
+| CI/CD | GitHub Actions | test -> build -> ECR push -> Trivy scan -> deploy |
+| Registry | AWS ECR | Immutable image tags (SHA-based) |
+| GitOps | ArgoCD | Watches Git, syncs image tags to cluster automatically |
+| Secrets | ESO + AWS Secrets Manager | Secrets never in Git, synced via IRSA |
+| Autoscaling | HPA + Cluster Autoscaler | Pods scale 2-5, nodes scale 2-3 |
+| Resilience | PodDisruptionBudget | minAvailable: 1 on all deployments |
+| Monitoring | Prometheus + Grafana | kube-prometheus-stack, metrics + dashboards |
+| HTTPS | cert-manager + Let's Encrypt | Auto-renewing TLS via ingress-nginx |
 | Auth | JWT + bcrypt | Secure login, multi-user, shared pools |
-| AI | Claude Haiku (vision) | Receipt scanning → auto-fill expense form |
+| AI | Claude Haiku (vision) | Receipt scanning -> auto-fill expense form |
 
 ---
 
@@ -83,13 +94,15 @@ One `git push` to `main` triggers the full pipeline:
 
 ```
 git push
-  → 1. Run pytest tests
-  → 2. Build Docker image, push to ECR tagged with git SHA
-  → 3. Trivy security scan (CRITICAL severity, ignore unfixed)
-  → 4. Patch ArgoCD application image tag → ArgoCD syncs → rollout waits
+  -> 1. pytest — Flask API tests
+  -> 2. Docker build (multistage), push to ECR with git SHA tag (immutable)
+  -> 3. Trivy security scan — blocks on CRITICAL unfixed CVEs
+  -> 4. kubectl patch ArgoCD application with new image tags
+  -> 5. ArgoCD syncs Helm chart to EKS
+  -> 6. kubectl rollout status waits for all pods to be healthy
 ```
 
-ECR credentials on the cluster auto-refresh every 6 hours via a K8s CronJob.
+ECR authentication on the cluster is handled automatically by the EKS node IAM role — no credentials to rotate.
 
 ---
 
@@ -97,13 +110,23 @@ ECR credentials on the cluster auto-refresh every 6 hours via a K8s CronJob.
 
 ```
 terraform/
-├── main.tf       — provider, S3 backend (finance-dashboard-tfstate-*)
-├── ec2.tf        — EC2 t3.medium, Elastic IP, security group
-├── budget.tf     — AWS Budget alert at $10/month
-└── variables.tf  — admin_cidr_blocks, anthropic_api_key (gitignored tfvars)
+├── main.tf                  — module wiring
+├── providers.tf             — AWS, Kubernetes, Helm providers
+├── variables.tf             — aws_region, environment, alert_email, etc.
+├── locals.tf                — common tags applied to every resource
+├── cluster-autoscaler.tf    — IRSA role + Helm release for cluster autoscaler
+├── monitoring.tf            — Helm release for kube-prometheus-stack
+├── budget.tf                — AWS Budget alert at $10/month
+├── backend.tf               — S3 state backend + DynamoDB lock
+└── modules/
+    ├── vpc/                 — VPC, subnets, NAT gateway
+    ├── eks/                 — EKS cluster + managed node group
+    ├── ecr/                 — ECR repositories (immutable tags)
+    ├── s3/                  — S3 buckets
+    └── dns/                 — Route53 hosted zone + A record
 ```
 
-State stored in S3 with DynamoDB lock. ECR has immutable tags and a lifecycle policy (keep last 10 images).
+State stored in S3 (`finance-dashboard-tfstate-579083551085`) with DynamoDB lock.
 
 ---
 
@@ -112,21 +135,35 @@ State stored in S3 with DynamoDB lock. ECR has immutable tags and a lifecycle po
 ```
 finance-dashboard/
 ├── backend/
-│   ├── app.py            — Flask API (expenses, auth, pools, receipt scan)
-│   ├── Dockerfile
+│   ├── app.py               — Flask API (expenses, auth, pools, receipt scan)
+│   ├── Dockerfile           — multistage: builder installs deps, runtime copies venv
+│   ├── test_app.py          — pytest tests
 │   └── requirements.txt
 ├── frontend/
-│   ├── index.html        — Main app (dashboard, expenses, budgets)
-│   ├── login.html        — Auth page
-│   └── style.css
-├── finance-chart/        — Helm chart
-│   └── templates/        — K8s manifests (deployment, service, ingress, PVC, CronJob)
-├── terraform/            — IaC for AWS resources
+│   ├── index.html           — Main app (dashboard, expenses, budgets, trends)
+│   ├── login.html           — Auth page
+│   ├── Dockerfile           — nginx serving static files
+│   └── nginx.conf
+├── finance-chart/           — Helm chart
+│   ├── values.yaml          — image repos, storage class, ports
+│   └── templates/
+│       ├── backend-deployment.yml
+│       ├── frontend-deployment.yml
+│       ├── db-deployment.yml
+│       ├── ingress.yml      — /api -> backend, / -> frontend
+│       ├── secret-store.yml — ESO ClusterSecretStore (AWS Secrets Manager)
+│       ├── external-secrets.yml — syncs db-credentials + finance-secrets
+│       ├── backend-hpa.yml + frontend-hpa.yml — scale 2-5 replicas
+│       └── backend-pdb.yml + frontend-pdb.yml — minAvailable: 1
+├── argocd/
+│   └── application.yml      — ArgoCD Application manifest (bootstrap the cluster)
+├── terraform/               — IaC (see above)
 ├── scripts/
-│   └── health-check.sh   — Checks pods, endpoints, ingress
-├── .github/workflows/
-│   └── deploy.yml        — Full CI/CD pipeline
-└── docker-compose.yml    — Local development
+│   └── health-check.sh      — checks allexpense.me + all K8s pods + system resources
+├── .github/
+│   ├── actions/aws-ecr-login/ — composite action (reused across jobs)
+│   └── workflows/deploy.yml — full CI/CD pipeline
+└── docker-compose.yml       — local development
 ```
 
 ---
@@ -145,46 +182,57 @@ docker-compose up --build
 
 ---
 
-## Kubernetes (k3s on EC2)
+## Kubernetes
 
 ```bash
-# Check running pods
+# Check all running pods
 kubectl get pods
 
-# View logs
+# Check pods in monitoring namespace
+kubectl get pods -n monitoring
+
+# View backend logs
 kubectl logs -l app=backend -f
 
-# Health check
+# Run health check
 bash scripts/health-check.sh
+
+# Bootstrap ArgoCD on a fresh cluster
+kubectl apply -f argocd/application.yml
 ```
 
 ---
 
 ## Security
 
-- Secrets stored as Kubernetes secrets (never in Git)
-- Git history scrubbed with `git-filter-repo` (API key incident)
-- ECR: immutable image tags + lifecycle policy
+- Secrets stored in AWS Secrets Manager — never in Git or in K8s manually
+- External Secrets Operator syncs secrets to the cluster using IRSA (no static AWS keys)
+- Git history scrubbed with `git-filter-repo` after API key incident
+- ECR immutable image tags — deployed image is exactly what was tested
+- Trivy scan blocks deploys on CRITICAL unfixed CVEs
 - CORS restricted to `https://allexpense.me`
-- Trivy scan on every deploy (blocks on CRITICAL unfixed CVEs)
-- Branch protection on `main` (PRs required, tests must pass)
+- Branch protection on `main` — PRs required, tests must pass
 
 ---
 
 ## Monitoring
 
-Prometheus scrapes Flask `/metrics` endpoint. Grafana dashboards on the cluster show request rate, latency, and pod health.
+Prometheus scrapes all cluster components via kube-prometheus-stack. Grafana dashboards show pod health, request rate, memory, and CPU.
 
 ```bash
 # Port-forward Grafana locally
-kubectl port-forward -n monitoring svc/grafana 3000:3000
+kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
+
+# Get Grafana admin password
+kubectl get secret -n monitoring monitoring-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 -d
 ```
 
 ---
 
 ## Extra Features (beyond academy requirements)
 
-- **Receipt scanner** — photo → Claude Haiku vision API → auto-fills expense form
+- **Receipt scanner** — photo -> Claude Haiku vision API -> auto-fills expense form
 - **Exchange rates** — live USD/EUR from API, historical rate locked at entry time
 - **Shared pools** — invite family members, shared expense groups with invite/accept/decline flow
 - **Hebrew/English i18n** — full translation throughout the UI
