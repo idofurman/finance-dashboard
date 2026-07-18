@@ -1,9 +1,3 @@
-module "s3" {
-  source      = "./modules/s3"
-  bucket_name = "finance-dashboard-tfstate-579083551085"
-  tags        = local.tags
-}
-
 module "vpc" {
   source       = "./modules/vpc"
   name         = "finance-vpc"
@@ -28,9 +22,11 @@ module "ecr" {
   tags = local.tags
 }
 
-module "dns" {
-  source                 = "./modules/dns"
-  domain                 = "allexpense.me"
-  load_balancer_hostname = var.load_balancer_hostname
-  tags                   = local.tags
-}
+# DNS module requires route53:CreateHostedZone permission on the CI user.
+# Uncomment once that permission is added to the CI IAM user.
+# module "dns" {
+#   source                 = "./modules/dns"
+#   domain                 = "allexpense.me"
+#   load_balancer_hostname = var.load_balancer_hostname
+#   tags                   = local.tags
+# }

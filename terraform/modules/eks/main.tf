@@ -56,7 +56,13 @@ module "eks" {
   vpc_id     = var.vpc_id
   subnet_ids = var.subnet_ids
 
-  cluster_endpoint_public_access = true
+  cluster_endpoint_public_access          = true
+  enable_cluster_creator_admin_permissions = true
+
+  create_kms_key              = false
+  cluster_encryption_config   = {}
+  cluster_enabled_log_types   = []
+  create_cloudwatch_log_group = false
 
   create_iam_role = false
   iam_role_arn    = aws_iam_role.cluster.arn

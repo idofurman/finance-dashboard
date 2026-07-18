@@ -13,12 +13,4 @@ output "ecr_urls" {
   value       = module.ecr.repository_urls
 }
 
-output "dns_nameservers" {
-  description = "Nameservers to set at your domain registrar (allexpense.me)"
-  value       = module.dns.nameservers
-}
 
-output "state_bucket" {
-  description = "S3 bucket storing Terraform state"
-  value       = module.s3.bucket_name
-}
