@@ -71,7 +71,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 | Topic | Tool | What it does |
 |---|---|---|
 | Containers | Docker | Packages each component |
-| Orchestration | Kubernetes (k3s) | Runs containers in a cluster |
+| Orchestration | Kubernetes (EKS) | Runs containers in AWS managed cluster |
 | IaC | Terraform | Infrastructure as code |
 | CI/CD | GitHub Actions | Auto test, build, deploy on git push |
 | Registry | AWS ECR | Stores Docker images |
@@ -85,7 +85,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 ### Dev environment
 - Linux machine (Ubuntu)
 - VS Code with Remote SSH
-- k3s for local Kubernetes
+- kubectl configured against AWS EKS
 
 ---
 
@@ -175,7 +175,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 
 ---
 
-### ✅ Teacher Missions — Production Hardening (IN PROGRESS — session 2026-07-16)
+### ✅ Teacher Missions — Production Hardening (COMPLETE — session 2026-07-18)
 
 **Goal:** Bring project to production level across 7 missions
 
@@ -187,7 +187,7 @@ A real family expense tracking app that Ido and his parents will actually use da
 | 4 | PodDisruptionBudget (PDB) | Done |
 | 5 | HorizontalPodAutoscaler (HPA) | Done |
 | 6 | External Secrets (ESO + AWS Secrets Manager) | Done |
-| 7 | Terraform: EKS + modules + split files | Remaining |
+| 7 | Terraform: EKS + modules + split files | Done |
 
 **What was done:**
 - `.github/actions/aws-ecr-login/action.yml` — composite action, replaces duplicated AWS/ECR login steps in workflow
@@ -199,33 +199,35 @@ A real family expense tracking app that Ido and his parents will actually use da
 - `finance-chart/templates/ingress.yml` — split: /api -> backend:5000, / -> frontend:80
 - `finance-chart/templates/backend-pdb.yml` + `frontend-pdb.yml` — minAvailable: 1
 - `finance-chart/templates/backend-hpa.yml` + `frontend-hpa.yml` — scale 2-5 replicas, CPU 70% / memory 80%
-- `finance-chart/values.yaml` — added frontend image section, removed hardcoded replicas
-- `.github/workflows/deploy.yml` — builds both backend and frontend images, passes both image tags to ArgoCD
-- ECR repo `finance-frontend` created in AWS (579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-frontend)
-- All changes committed: e581568
-
-**Remaining work:**
-- Mission 6: Install External Secrets Operator, store secrets in AWS Secrets Manager, create SecretStore + ExternalSecret manifests
-- Mission 7: Rewrite Terraform — split into versions.tf/networking.tf/eks.tf/ecr.tf/iam.tf/budget.tf, use modules, migrate from EC2+k3s to EKS
+- `finance-chart/templates/secret-store.yml` + `external-secrets.yml` — ESO ClusterSecretStore + ExternalSecrets in Helm chart (GitOps-managed)
+- `finance-chart/values.yaml` — added frontend image section, storageClass gp2
+- `.github/workflows/deploy.yml` — builds both images, Trivy scans SHA tag, deploys to EKS via ArgoCD
+- ECR repos `finance-backend` + `finance-frontend` with immutable tags
+- `terraform/` — fully rewritten: modules/vpc, modules/eks, modules/ecr, modules/s3, modules/dns, S3 backend, DynamoDB lock
+- Migrated from EC2+k3s to AWS EKS — cluster running at finance-eks (us-east-1)
+- Cluster Autoscaler installed (chart 9.37.0 / app v1.30.0 matching EKS version), IRSA auth, scales 2-3 nodes
+- Prometheus + Grafana (kube-prometheus-stack) running in monitoring namespace on EKS
+- All secrets stored in AWS Secrets Manager, synced to cluster via ESO with IRSA
+- ArgoCD syncing finance-chart from GitHub repo HEAD
 
 ---
 
-### 🔄 Week 4 — Auth + Security + ArgoCD + Polish (MOSTLY DONE)
+### ✅ Week 4 — Auth + Security + ArgoCD + Polish (COMPLETE)
 
 **Goal:** Production-ready app with auth, HTTPS, GitOps, observability, and demo-ready
 
 **Steps:**
 1. ✅ JWT auth — /auth/register, /auth/login, /auth/me (PyJWT + bcrypt)
 2. ✅ Multi-user + shared expense pools (invite/accept/decline flow)
-3. ✅ HTTPS + domain — allexpense.me via cert-manager + Let's Encrypt on k3s
+3. ✅ HTTPS + domain — allexpense.me via cert-manager + Let's Encrypt on EKS + ingress-nginx
 4. ✅ Security hardening — purged secrets from git history, rotated all keys, immutable ECR tags
-5. ✅ Terraform hardening — S3 backend for state, DynamoDB lock, removed NodePort, $10/month budget
-6. ✅ ArgoCD — installed, wired to GitHub repo, CI/CD patches image tag and ArgoCD syncs it
-7. ✅ ECR credentials auto-refresh — K8s CronJob refreshes docker-registry secret every 6 hours
-8. ✅ Bash health check script — `scripts/health-check.sh`
+5. ✅ Terraform hardening — S3 backend for state, DynamoDB lock, $10/month budget
+6. ✅ ArgoCD — installed on EKS, watches GitHub repo, CI/CD patches image tag and ArgoCD syncs it
+7. ✅ ECR auth — handled by EKS node IAM role (no CronJob needed)
+8. ✅ Bash health check script — `scripts/health-check.sh` (checks https://allexpense.me)
 9. ✅ Live exchange rates — USD/EUR pulled from API, historical rate locked at time of entry
-10. ✅ Responsive mobile layout — fully polished: summary+expenses side by side, no overflow, emoji+category same line, all section titles visible, chart tooltip shows price+percentage
-11. ✅ Prometheus + Grafana — deployed in `monitoring` namespace on k3s, Flask /metrics endpoint active
+10. ✅ Responsive mobile layout — fully polished
+11. ✅ Prometheus + Grafana — deployed in `monitoring` namespace on EKS (kube-prometheus-stack)
 12. ⏳ README — file exists but empty
 13. ⏳ Demo video — not recorded
 
@@ -338,15 +340,15 @@ __pycache__/
 | Requirement | Status | Notes |
 |---|---|---|
 | Git repository | ✅ Done | github.com/idofurman/finance-dashboard (public) |
-| Docker containers | ✅ Done | backend + db, Dockerfile at repo root |
-| Kubernetes deployment | ✅ Done | k3s on EC2 t3.medium, Ubuntu 22.04 |
-| Helm chart | ✅ Done | finance-chart/, deployed via helm upgrade --set image.tag=$SHA |
-| Terraform | ✅ Done | ECR (immutable), EC2, S3 state backend, DynamoDB lock, $10 budget |
-| GitHub Actions CI/CD | ✅ Done | test → build → ECR push → Trivy scan → ArgoCD deploy |
-| AWS ECR | ✅ Done | Immutable tags, lifecycle policy (keep last 10) |
-| ArgoCD | ✅ Done | Installed on k3s, watches GitHub repo, CI patches image tag |
-| Bash scripts | ✅ Done | scripts/health-check.sh |
-| Prometheus + Grafana | ✅ Done | Both running in `monitoring` namespace on k3s |
+| Docker containers | ✅ Done | backend + frontend multistage Dockerfiles, docker-compose for local dev |
+| Kubernetes deployment | ✅ Done | AWS EKS (finance-eks, us-east-1), t3.medium nodes, 2-3 node autoscaling |
+| Helm chart | ✅ Done | finance-chart/, ArgoCD patches image tag on each deploy |
+| Terraform | ✅ Done | Modules: vpc, eks, ecr, dns. S3 state backend, DynamoDB lock, $10 budget |
+| GitHub Actions CI/CD | ✅ Done | test → build → ECR push (SHA tag) → Trivy scan → ArgoCD deploy to EKS |
+| AWS ECR | ✅ Done | Immutable tags, two repos: finance-backend + finance-frontend |
+| ArgoCD | ✅ Done | Running on EKS, watches GitHub repo, auto-sync with prune + selfHeal |
+| Bash scripts | ✅ Done | scripts/health-check.sh — checks allexpense.me + K8s pods + system resources |
+| Prometheus + Grafana | ✅ Done | kube-prometheus-stack running in monitoring namespace on EKS |
 | README + docs | ⏳ Remaining | File exists but empty |
 
 ---
@@ -356,10 +358,12 @@ __pycache__/
 ```
 git push
     → GitHub Actions triggers
-    → Tests run
-    → Docker image built and pushed to ECR
-    → ArgoCD detects change in Git
-    → New version deployed to k3s
+    → Tests run (pytest)
+    → Docker images built and pushed to ECR (SHA tag, immutable)
+    → Trivy scans the backend image for CRITICAL CVEs
+    → ArgoCD Application patched with new image tags
+    → ArgoCD syncs Helm chart to EKS
+    → New version deployed — backend + frontend rolling update
     → Grafana shows the deployment live
 ```
 
