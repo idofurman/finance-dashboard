@@ -159,7 +159,7 @@ finance-dashboard/
 │   └── application.yml      — ArgoCD Application manifest (bootstrap the cluster)
 ├── terraform/               — IaC (see above)
 ├── scripts/
-│   └── health-check.sh      — checks allexpense.me + all K8s pods + system resources
+│   └── health-check.sh      — checks allexpense.me + all K8s pods + EKS node readiness
 ├── .github/
 │   ├── actions/aws-ecr-login/ — composite action (reused across jobs)
 │   └── workflows/deploy.yml — full CI/CD pipeline
@@ -226,8 +226,10 @@ kubectl apply -f argocd/application.yml
 
 Prometheus scrapes all cluster components via kube-prometheus-stack. Grafana dashboards show pod health, request rate, memory, and CPU.
 
+Grafana is also exposed publicly at **[grafana.allexpense.me](https://grafana.allexpense.me)**.
+
 ```bash
-# Port-forward Grafana locally
+# Port-forward Grafana locally (alternative)
 kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
 
 # Get Grafana admin password
