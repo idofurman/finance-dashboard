@@ -45,13 +45,9 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/finance-backend:$IMAGE_TAG -f backend/Dockerfile ./backend
           docker push $ECR_REGISTRY/finance-backend:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/finance-backend:$IMAGE_TAG $ECR_REGISTRY/finance-backend:latest
-          docker push $ECR_REGISTRY/finance-backend:latest
 
           docker build -t $ECR_REGISTRY/finance-frontend:$IMAGE_TAG -f frontend/Dockerfile ./frontend
           docker push $ECR_REGISTRY/finance-frontend:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/finance-frontend:$IMAGE_TAG $ECR_REGISTRY/finance-frontend:latest
-          docker push $ECR_REGISTRY/finance-frontend:latest
 
   security-scan:
     name: Security Scan (Trivy)
