@@ -27,7 +27,7 @@ def test_get_expenses_returns_list(client):
     mock_cur.fetchall.return_value = []
 
     with patch('app.get_db', return_value=mock_conn):
-        response = client.get('/expenses')
+        response = client.get('/api/expenses')
     assert response.status_code == 200
     assert isinstance(response.get_json(), list)
 
@@ -39,17 +39,17 @@ def test_post_expense_missing_fields(client):
     mock_cur.execute.side_effect = Exception("missing fields")
 
     with patch('app.get_db', return_value=mock_conn):
-        response = client.post('/expenses', json={})
+        response = client.post('/api/expenses', json={})
     assert response.status_code == 500
 
 
 def test_register_missing_fields(client):
     with patch('app.get_db'):
-        response = client.post('/auth/register', json={'username': 'test'})
+        response = client.post('/api/auth/register', json={'username': 'test'})
     assert response.status_code == 400
 
 
 def test_login_missing_fields(client):
     with patch('app.get_db'):
-        response = client.post('/auth/login', json={})
+        response = client.post('/api/auth/login', json={})
     assert response.status_code == 400
