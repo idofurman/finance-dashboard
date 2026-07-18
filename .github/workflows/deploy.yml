@@ -76,45 +76,38 @@ jobs:
           ignore-unfixed: true
 
   deploy:
-    name: Deploy to EC2
+    name: Deploy to EKS
     needs: security-scan
     runs-on: ubuntu-latest
     steps:
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-
       - uses: actions/checkout@v4
 
-      - name: Copy Helm chart to EC2
-        run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -r ./finance-chart ubuntu@${{ secrets.EC2_HOST }}:~/
+      - name: Login to AWS ECR
+        id: login-ecr
+        uses: ./.github/actions/aws-ecr-login
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Deploy to EC2 via SSH
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig --name finance-eks --region us-east-1
+
+      - name: Patch ArgoCD with new image tags
         env:
           IMAGE_TAG: ${{ github.sha }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} bash << EOF
-            set -e
-            ACCOUNT_ID=\$(aws sts get-caller-identity --query Account --output text)
-            ECR_REGISTRY="\${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+          kubectl patch application finance-dashboard -n argocd \
+            --type merge \
+            -p "{\"spec\":{\"source\":{\"helm\":{\"parameters\":[
+              {\"name\":\"backend.image.repository\",\"value\":\"${ECR_REGISTRY}/finance-backend\"},
+              {\"name\":\"backend.image.tag\",\"value\":\"${IMAGE_TAG}\"},
+              {\"name\":\"frontend.image.repository\",\"value\":\"${ECR_REGISTRY}/finance-frontend\"},
+              {\"name\":\"frontend.image.tag\",\"value\":\"${IMAGE_TAG}\"}
+            ]}}}}"
 
-            TOKEN=\$(aws ecr get-login-password --region us-east-1)
-            sudo k3s kubectl create secret docker-registry ecr-credentials \
-              --docker-server=\${ECR_REGISTRY} \
-              --docker-username=AWS \
-              --docker-password=\$TOKEN \
-              --dry-run=client -o yaml | sudo k3s kubectl apply -f -
-
-            # Tell ArgoCD which image tag to use — ArgoCD owns the deployment
-            sudo k3s kubectl patch application finance-dashboard -n argocd \
-              --type merge \
-              -p "{\"spec\":{\"source\":{\"helm\":{\"parameters\":[{\"name\":\"backend.image.repository\",\"value\":\"\${ECR_REGISTRY}/finance-backend\"},{\"name\":\"backend.image.tag\",\"value\":\"${IMAGE_TAG}\"},{\"name\":\"frontend.image.repository\",\"value\":\"\${ECR_REGISTRY}/finance-frontend\"},{\"name\":\"frontend.image.tag\",\"value\":\"${IMAGE_TAG}\"}]}}}}"
-
-            # Wait for ArgoCD to sync and rollout to complete
-            sleep 15
-            sudo k3s kubectl rollout status deployment/backend --timeout=180s
-          EOF
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/backend --timeout=180s
+          kubectl rollout status deployment/frontend --timeout=180s
