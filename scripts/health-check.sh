@@ -1,7 +1,7 @@
 #!/bin/bash
 # Health check script for the Finance Dashboard infrastructure
 
-APP_URL="http://localhost:30500"
+APP_URL="https://allexpense.me"
 PASS=0
 FAIL=0
 
@@ -32,15 +32,15 @@ check "Flask app responding" "curl -sf $APP_URL/health"
 
 echo ""
 echo "--- Kubernetes Pods ---"
-check "Backend pod running" "sudo kubectl get pods -l app=backend --no-headers | grep -q Running"
-check "Database pod running" "sudo kubectl get pods -l app=db --no-headers | grep -q Running"
-check "Prometheus running"  "sudo kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers | grep -q Running"
-check "Grafana running"     "sudo kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana --no-headers | grep -q Running"
-check "ArgoCD server running" "sudo kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server --no-headers | grep -q Running"
+check "Backend pod running" "kubectl get pods -l app=backend --no-headers | grep -q Running"
+check "Database pod running" "kubectl get pods -l app=db --no-headers | grep -q Running"
+check "Prometheus running"  "kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers | grep -q Running"
+check "Grafana running"     "kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana --no-headers | grep -q Running"
+check "ArgoCD server running" "kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server --no-headers | grep -q Running"
 
 echo ""
 echo "--- ArgoCD ---"
-check "App synced to GitHub" "sudo kubectl get application finance-dashboard -n argocd -o jsonpath='{.status.sync.status}' | grep -q Synced"
+check "App synced to GitHub" "kubectl get application finance-dashboard -n argocd -o jsonpath='{.status.sync.status}' | grep -q Synced"
 
 echo ""
 echo "--- System Resources ---"

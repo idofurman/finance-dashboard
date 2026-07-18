@@ -11,8 +11,6 @@ spec:
       labels:
         app: frontend
     spec:
-      imagePullSecrets:
-        - name: ecr-credentials
       containers:
         - name: frontend
           image: {{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}
