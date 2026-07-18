@@ -1790,6 +1790,13 @@ async function init() {
 }
 
 init();
+
+// Re-check auth on bfcache restore (mobile swipe-back)
+window.addEventListener('pageshow', function(e) {
+    if (e.persisted && !getToken()) {
+        window.location.replace('/');
+    }
+});
 </script>
 </body>
 </html>

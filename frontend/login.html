@@ -229,6 +229,13 @@ document.addEventListener('keydown', e => {
 
 // If already logged in, go to app
 if (localStorage.getItem('authToken')) window.location.href = '/app';
+
+// Re-check on bfcache restore (mobile swipe-back)
+window.addEventListener('pageshow', function(e) {
+    if (e.persisted && localStorage.getItem('authToken')) {
+        window.location.replace('/app');
+    }
+});
 </script>
 </body>
 </html>
