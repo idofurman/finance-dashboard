@@ -1,13 +1,13 @@
 backend:
   image:
     repository: 579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-backend
-    tag: latest
+    tag: set-by-argocd
   port: 5000
 
 frontend:
   image:
     repository: 579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-frontend
-    tag: latest
+    tag: set-by-argocd
 
 db:
   image: postgres:16

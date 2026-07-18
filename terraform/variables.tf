@@ -21,3 +21,8 @@ variable "load_balancer_hostname" {
   type        = string
   default     = ""
 }
+
+variable "alert_email" {
+  description = "Email address that receives AWS budget alerts"
+  type        = string
+}
