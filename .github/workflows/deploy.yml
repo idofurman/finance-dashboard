@@ -240,6 +240,12 @@ jobs:
               {\"name\":\"exchangeRateService.image.tag\",\"value\":\"${IMAGE_TAG}\"}
             ]}}}}"
 
+      - name: Wait for ArgoCD sync
+        run: |
+          kubectl wait application/finance-dashboard -n argocd \
+            --for=jsonpath='{.status.sync.status}'=Synced \
+            --timeout=300s
+
       - name: Wait for rollout
         run: |
           kubectl rollout status deployment/backend -n default --timeout=180s
