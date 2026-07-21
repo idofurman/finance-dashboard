@@ -16,6 +16,20 @@ spec:
     - host: allexpense.me
       http:
         paths:
+          - path: /api/parse-receipt
+            pathType: Prefix
+            backend:
+              service:
+                name: receipt-service
+                port:
+                  number: {{ .Values.receiptService.port }}
+          - path: /api/exchange-rates
+            pathType: Prefix
+            backend:
+              service:
+                name: exchange-rate-service
+                port:
+                  number: {{ .Values.exchangeRateService.port }}
           - path: /api
             pathType: Prefix
             backend:
@@ -33,6 +47,20 @@ spec:
     - host: www.allexpense.me
       http:
         paths:
+          - path: /api/parse-receipt
+            pathType: Prefix
+            backend:
+              service:
+                name: receipt-service
+                port:
+                  number: {{ .Values.receiptService.port }}
+          - path: /api/exchange-rates
+            pathType: Prefix
+            backend:
+              service:
+                name: exchange-rate-service
+                port:
+                  number: {{ .Values.exchangeRateService.port }}
           - path: /api
             pathType: Prefix
             backend:

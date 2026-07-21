@@ -9,6 +9,18 @@ frontend:
     repository: 579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-frontend
     tag: set-by-argocd
 
+receiptService:
+  image:
+    repository: 579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-receipt-service
+    tag: set-by-argocd
+  port: 5004
+
+exchangeRateService:
+  image:
+    repository: 579083551085.dkr.ecr.us-east-1.amazonaws.com/finance-exchange-rate-service
+    tag: set-by-argocd
+  port: 5005
+
 db:
   image: postgres:16
   storage: 1Gi

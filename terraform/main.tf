@@ -18,6 +18,8 @@ module "ecr" {
   repository_names = [
     "finance-backend",
     "finance-frontend",
+    "finance-receipt-service",
+    "finance-exchange-rate-service",
   ]
   tags = local.tags
 }

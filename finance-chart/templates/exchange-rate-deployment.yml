@@ -1,42 +1,42 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: exchange-rate-service
 spec:
   selector:
     matchLabels:
-      app: backend
+      app: exchange-rate-service
 
   template:
     metadata:
       labels:
-        app: backend
+        app: exchange-rate-service
     spec:
       containers:
-        - name: backend
-          image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
+        - name: exchange-rate-service
+          image: {{ .Values.exchangeRateService.image.repository }}:{{ .Values.exchangeRateService.image.tag }}
           imagePullPolicy: Always
           ports:
-            - containerPort: {{ .Values.backend.port }}
+            - containerPort: {{ .Values.exchangeRateService.port }}
           resources:
             requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
               memory: "256Mi"
               cpu: "250m"
-            limits:
-              memory: "512Mi"
-              cpu: "500m"
           livenessProbe:
             httpGet:
               path: /health
-              port: {{ .Values.backend.port }}
-            initialDelaySeconds: 30
+              port: {{ .Values.exchangeRateService.port }}
+            initialDelaySeconds: 15
             periodSeconds: 10
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
-              port: {{ .Values.backend.port }}
-            initialDelaySeconds: 10
+              port: {{ .Values.exchangeRateService.port }}
+            initialDelaySeconds: 5
             periodSeconds: 5
             failureThreshold: 3
           env:

@@ -10,8 +10,6 @@ import threading
 import os
 import jwt
 import bcrypt
-import urllib.request
-import json as json_lib
 from datetime import date, timedelta, datetime, timezone
 from functools import wraps
 
@@ -517,70 +515,6 @@ def leave_pool(pool_id):
 # ============================================================
 # EXCHANGE RATES  (USD, EUR -> ILS, refreshed every 3 days)
 # ============================================================
-FIAT_CURRENCIES = ['USD', 'EUR']
-
-FRANKFURTER_URL = 'https://api.frankfurter.app/latest?from=ILS&to=USD,EUR'
-
-
-@api.route('/exchange-rates', methods=['GET'])
-@require_auth
-def get_exchange_rates():
-    conn = get_db()
-    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    try:
-        cur.execute(
-            "SELECT currency, rate_to_ils, fetched_at FROM exchange_rates "
-            "WHERE fetched_at > NOW() - INTERVAL '3 days'"
-        )
-        cached = {r['currency']: r for r in cur.fetchall()}
-
-        if all(c in cached for c in FIAT_CURRENCIES):
-            return jsonify({
-                c: {
-                    'rate_to_ils': float(cached[c]['rate_to_ils']),
-                    'fetched_at':  cached[c]['fetched_at'].isoformat(),
-                }
-                for c in FIAT_CURRENCIES
-            })
-
-        try:
-            req = urllib.request.Request(FRANKFURTER_URL, headers={'Accept': 'application/json'})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json_lib.loads(resp.read())
-        except Exception:
-            if cached:
-                return jsonify({
-                    c: {'rate_to_ils': float(cached[c]['rate_to_ils'])}
-                    for c in FIAT_CURRENCIES if c in cached
-                })
-            return jsonify({'error': 'Could not fetch exchange rates'}), 503
-
-        result = {}
-        rates  = data.get('rates', {})
-        for currency in FIAT_CURRENCIES:
-            rate_from_ils = rates.get(currency)
-            if not rate_from_ils:
-                continue
-            rate_to_ils = round(1.0 / rate_from_ils, 6)
-            cur.execute(
-                """INSERT INTO exchange_rates (currency, rate_to_ils, fetched_at)
-                   VALUES (%s, %s, NOW())
-                   ON CONFLICT (currency) DO UPDATE
-                     SET rate_to_ils=EXCLUDED.rate_to_ils,
-                         fetched_at=EXCLUDED.fetched_at""",
-                (currency, rate_to_ils)
-            )
-            result[currency] = {
-                'rate_to_ils': rate_to_ils,
-                'fetched_at':  datetime.now(timezone.utc).isoformat(),
-            }
-
-        conn.commit()
-        return jsonify(result)
-    finally:
-        cur.close()
-        get_pool().putconn(conn)
-
 
 @api.route('/expenses', methods=['GET', 'POST'])
 @require_auth
@@ -805,54 +739,6 @@ def modify_standing_order(order_id):
     row['amount'] = float(row['amount'])
     conn.commit(); cur.close(); get_pool().putconn(conn)
     return jsonify(row)
-
-
-# ============================================================
-# RECEIPT SCANNER
-# ============================================================
-@api.route('/parse-receipt', methods=['POST'])
-@require_auth
-def parse_receipt():
-    import anthropic as _anthropic
-    import json as _json
-
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if not api_key:
-        return jsonify({'error': 'ANTHROPIC_API_KEY not configured on server'}), 503
-
-    data      = request.get_json()
-    img_data  = data.get('image')
-    mime_type = data.get('media_type', 'image/jpeg')
-    if not img_data:
-        return jsonify({'error': 'No image provided'}), 400
-
-    try:
-        client = _anthropic.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=300,
-            messages=[{'role': 'user', 'content': [
-                {'type': 'image', 'source': {'type': 'base64', 'media_type': mime_type, 'data': img_data}},
-                {'type': 'text', 'text': (
-                    'Extract the key details from this receipt. '
-                    'Return ONLY valid JSON with no markdown, no explanation:\n'
-                    '{"name":"store or merchant name","amount":0.00,"date":"YYYY-MM-DD",'
-                    '"category":"groceries|housing|transport|food|clothing|health|subscriptions|entertainment|education|other"}\n'
-                    'amount = total amount paid. Use null for any field you cannot determine. '
-                    'For date, if year is missing assume current year.'
-                )}
-            ]}]
-        )
-        raw = msg.content[0].text.strip()
-        if raw.startswith('```'):
-            raw = raw.split('```')[1]
-            if raw.startswith('json'): raw = raw[4:]
-            raw = raw.strip()
-        return jsonify(_json.loads(raw))
-    except _json.JSONDecodeError:
-        return jsonify({'error': 'Could not parse receipt data'}), 422
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 
 # ============================================================
